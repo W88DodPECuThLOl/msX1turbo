@@ -12,6 +12,9 @@
     ; スプライトパターンジェネレータテーブル
     .globl _SPRITE_PATTERN_GENERATOR_TABLE_ADDRESS
 
+    ; VRAMアドレス
+VRAM .equ 0x8000
+
 ; MSX BIOS
     .globl _WRTVDP
     .globl _RDVRM
@@ -19,6 +22,7 @@
     .globl _SETRD
     .globl _SETWRT
     .globl _FILVRM
+    .globl _LDIRMV
     .globl _LDIRVM
     .globl _RDVDP
    
@@ -83,7 +87,11 @@ WRTVDP_R6:
 	ADD A,A
 	ADD A,A
 	ADD A,A
-	ADD	A,#0x80 ; VRAM
+.if VRAM == #0x8000
+	ADD	A,#0x80 ; VRAM 0x8000～0xBFFF
+.else
+	ADD	A,#0x40 ; VRAM 0x4000～0x7FFF
+.endif
     LD (_SPRITE_PATTERN_GENERATOR_TABLE_ADDRESS+1),A
     JR WRTVDP_EXIT
 
@@ -92,8 +100,13 @@ WRTVDP_R6:
 ; 	HL	VRAMのアドレス
 _RDVRM:
     PUSH HL
-        RES 6,H
-        SET 7,H ; VRAM 0x8000～0xBFFF
+.if VRAM == #0x8000
+        RES 6,H ; VRAM 0x8000～0xBFFF
+        SET 7,H
+.else
+        SET 6,H ; VRAM 0x4000～0x7FFF
+        RES 7,H
+.endif
         LD A,(HL)
     POP HL
     RET
@@ -105,8 +118,13 @@ _RDVRM:
 ; AF
 _WRTVRM:
     PUSH HL
-        RES 6,H
-        SET 7,H ; VRAM 0x8000～0xBFFF
+.if VRAM == #0x8000
+        RES 6,H ; VRAM 0x8000～0xBFFF
+        SET 7,H
+.else
+        SET 6,H ; VRAM 0x4000～0x7FFF
+        RES 7,H
+.endif
         LD (HL),A
     POP HL
     RET
@@ -125,8 +143,13 @@ _SETRD:
 ; 変更レジスタ
 ; AF
 _SETWRT:
-    RES 6,H
+.if VRAM == #0x8000
+    RES 6,H ; VRAM 0x8000～0xBFFF
     SET 7,H
+.else
+    SET 6,H ; VRAM 0x4000～0x7FFF
+    RES 7,H
+.endif
     LD (VRAM_ACCESS_POINTER),HL
     RET
 
@@ -156,10 +179,10 @@ _IN_OUT_HOOK:
 ;
 ;    SP-> IX
 ;         IX
-;         AF
-;         AF
 ;         HL
 ;         HL
+;         AF
+;         AF
 ;         41  RETURN ADDRESS
 ;         40
     PUSH IX
@@ -209,8 +232,13 @@ IN_OUT_OPCODE:
 _FILVRM:
     PUSH HL
     PUSH DE
-        RES 6,H
-        SET 7,H ; VRAM 0x8000～0xBFFF
+.if VRAM == #0x8000
+        RES 6,H ; VRAM 0x8000～0xBFFF
+        SET 7,H
+.else
+        SET 6,H ; VRAM 0x4000～0x7FFF
+        RES 7,H
+.endif
         LD (HL),A
 
         DEC BC
@@ -227,6 +255,24 @@ FILVRM_EXIT:
     POP HL
     RET
 
+; LDIRMV (0059H/MAIN)
+; VRAMからメモリへデータをブロック転送します。
+; HL 転送元のVRAMアドレス(指定するVRAMアドレスは全ビットが有効)
+; DE 転送先のRAMアドレス
+; BC 転送する長さ(バイト数)
+; 変更レジスタ
+; すべて
+_LDIRMV:
+.if VRAM == #0x8000
+    RES 6,H ; VRAM 0x8000～0xBFFF
+    SET 7,H
+.else
+    SET 6,H ; VRAM 0x4000～0x7FFF
+    RES 7,H
+.endif
+    LDIR
+    RET
+
 ; LDIRVM (005CH/MAIN)
 ; メモリからVRAMへデータをブロック転送します。
 ;HL	転送元のRAMアドレス
@@ -235,8 +281,13 @@ FILVRM_EXIT:
 ; 変更レジスタ
 ; すべて
 _LDIRVM:
-    RES 6,D
-    SET 7,D ; VRAM 0x8000～0xBFFF
+.if VRAM == #0x8000
+    RES 6,D ; VRAM 0x8000～0xBFFF
+    SET 7,D
+.else
+    SET 6,D ; VRAM 0x4000～0x7FFF
+    RES 7,D
+.endif
     LDIR
     RET
 

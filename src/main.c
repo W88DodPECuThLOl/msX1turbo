@@ -26,9 +26,10 @@ typedef uint16_t u32;
 #include <catZ80Lib.h>
 #include <string.h>
 #endif // __WIN32
+#include "x1VDP.h"
 
-void vdpInit();
-void vdpRender();
+#define ROM_ADDRESS 0x4000
+
 extern void INITIALIZE();
 extern void CTC_SETUP();
 extern void IN_OUT_HOOK();
@@ -41,7 +42,9 @@ extern void SETRD();
 extern void SETWRT();
 extern void FILVRM();
 extern void CLRSPR();
+extern void LDIRMV();
 extern void LDIRVM();
+extern void GICINI();
 extern void WRTPSG();
 extern void RDPSG();
 extern void GTSTCK();
@@ -56,14 +59,17 @@ main()
     __asm__("di");
     INITIALIZE();
     vdpInit();
+    GICINI();
 
     // MSX WORK
     *(u8*)0x006 = 0xC6; // VDP.DR
     *(u8*)0x007 = 0xC6; // VDP.WR
     // MSX BIOS
-    *(u8*)0x0024 = 0xC3; *(u16*)(0x0024+1) = (u16)ENASLT; // ENASLT
+    *(u8*)0x0024 = 0xC3; *(u16*)(0x0024+1) = (u16)ENASLT;
     *(u8*)0x003B = 0xC9; // INITIO
     *(u8*)0x003E = 0xC9; // INIFNK
+    *(u8*)0x0041 = 0xC9; // DISSCR 画面表示を禁止します。
+    *(u8*)0x0044 = 0xC9; // ENASCR 画面を表示します。
     *(u8*)0x0047 = 0xC3; *(u16*)(0x0047+1) = (u16)WRTVDP;
     *(u8*)0x004A = 0xC3; *(u16*)(0x004A+1) = (u16)RDVRM;
     *(u8*)0x004D = 0xC3; *(u16*)(0x004D+1) = (u16)WRTVRM;
@@ -71,26 +77,30 @@ main()
     *(u8*)0x0053 = 0xC3; *(u16*)(0x0053+1) = (u16)SETWRT;
     *(u8*)0x0056 = 0xC3; *(u16*)(0x0056+1) = (u16)FILVRM;
     *(u8*)0x0069 = 0xC3; *(u16*)(0x0069+1) = (u16)CLRSPR;
+    *(u8*)0x0059 = 0xC3; *(u16*)(0x0059+1) = (u16)LDIRMV;
     *(u8*)0x005C = 0xC3; *(u16*)(0x005C+1) = (u16)LDIRVM;
+    *(u8*)0x0090 = 0xC3; *(u16*)(0x0090+1) = (u16)GICINI;
     *(u8*)0x0093 = 0xC3; *(u16*)(0x0093+1) = (u16)WRTPSG;
     *(u8*)0x0096 = 0xC3; *(u16*)(0x0096+1) = (u16)RDPSG;
-    *(u8*)0x0090 = 0xC9; // GICINI
     *(u8*)0x0099 = 0xC9; // STRTMS
     *(u8*)0x00A2 = 0xC9; // CHPUT
     *(u8*)0x00A5 = 0xC9; // LPTOUT
+    *(u8*)0x00A5 = 0xC9; // CHGMOD
+    *(u8*)0x0062 = 0xC9; // CHGCLR
     *(u8*)0x00A8 = 0xC9; // LPTSTT
     *(u8*)0x00D5 = 0xC3; *(u16*)(0x00D5 + 1) = (u16)GTSTCK;
     *(u8*)0x00D8 = 0xC3; *(u16*)(0x00D8 + 1) = (u16)GTTRIG;
     *(u8*)0x0135 = 0xC9; // CHGSND
-    *(u8*)0x0138 = 0xC3; *(u16*)(0x0138 + 1) = (u16)RSLREG; // RSLREG
+    *(u8*)0x0138 = 0xC3; *(u16*)(0x0138 + 1) = (u16)RSLREG;
     *(u8*)0x013E = 0xC3; *(u16*)(0x013E + 1) = (u16)RDVDP;
     *(u8*)0x0141 = 0xC3; *(u16*)(0x0141+1) = (u16)SNSMAT;
     // IO PATCH
     // @todo
     *(u8*)0x0000 = 0xC3; *(u16*)(0x0000+1) = (u16)IN_OUT_HOOK;
-    for(u16 addr = 0x4010; addr < 0x8000; ++addr) {
-        if(*(u16*)addr == 0x79ED) {
+    for(u16 addr = ROM_ADDRESS + 0x0010; addr < ROM_ADDRESS + 0x4000; ++addr) {
+        if(*(u16*)addr == 0x79ED || *(u16*)addr == 0x98D3) {
             // OUT (C),A
+            // OUT (0x98),A
             *(u16*)addr = 0x77C7; // RST #0x00 : LD 0(IX),A
         } else if(*(u16*)addr == 0x78ED) {
             // IN A,(C)
@@ -151,10 +161,9 @@ main()
         }
 #endif
     }
-
     CTC_SETUP();
     __asm__("ei");
-    ((void (*)())*(u16*)0x4002)();
+    ((void (*)())*(u16*)(ROM_ADDRESS + 0x0002))();
 
     return 0;
 }

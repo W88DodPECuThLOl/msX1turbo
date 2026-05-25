@@ -3,7 +3,9 @@
     .area _CODE
     .allow_undocumented
 
-H_KEYI    .equ    0xFD9A    ; HOOK H.KEYI
+H_KEYI          .equ    0xFD9A ; HOOK H.KEYI
+SYSTEM_STACK    .equ    0x1800 ; システム用のスタックアドレス
+
 
     .globl _INITIALIZE
     .globl _CTC_SETUP
@@ -12,16 +14,13 @@ H_KEYI    .equ    0xFD9A    ; HOOK H.KEYI
 
 ; MSX BIOS
     .globl _ENASLT
+    .globl _GICINI
     .globl _WRTPSG
     .globl _RDPSG
     .globl _GTSTCK
     .globl _GTTRIG
     .globl _RSLREG
     .globl _SNSMAT
-
-; システム用のスタック
-    .DS 0x100
-SYSTEM_STACK:
 
 ; ユーザー側のスタックポインタ保存用
 SP_SAVE:
@@ -273,12 +272,39 @@ _ENASLT:
     DI
     RET
 
+; GICINI (0090H/MAIN)
+; PSGを初期化し、PLAY文のための初期値を設定します。
+; 変更レジスタ
+; すべて
+_GICINI:
+    LD BC,#0x1C00
+    LD A,#0x07
+    DI
+    OUT (C),A
+    DEC B
+    LD D,#0xF8
+    OUT (C),D
+    INC B
+    INC A
+GICINI_LOOP:
+    OUT (C),A
+    DEC B
+    .DB 0xED,0x71 ; OUT (C),F
+    INC B
+    INC A
+    CP #11
+    JR NZ,GICINI_LOOP
+    EI
+    RET
+
 ; WRTPSG (0093H/MAIN)
 ; @param    A   PSGのレジスタ番号
 ; @param    E   書き込むデータ
 _WRTPSG:
+    CP A,#0x0F
+    JR Z,WRTPSG_PORT_B
     PUSH BC
-        LD B,#0x1C
+        LD BC,#0x1C00
         DI
         OUT	(C),A ; PSGレジスタ番号
         DEC B
@@ -286,19 +312,72 @@ _WRTPSG:
         EI
     POP BC
     RET
+WRTPSG_PORT_B:
+    PUSH AF
+    LD A,E
+    LD (PSG_REG15),A
+    POP AF
+    RET
+
+PSG_REG15:
+    .DB 0xFF
 
 ; RDPSG (0096H/MAIN)
 ; @param    A   PSGのレジスタ番号
 ; @return   A   読み出した値
 _RDPSG:
+    CP A,#0x0E
+    JR Z,RDPSG_PORT_A
+RDPSG_SUB:
     PUSH BC
-        LD B,#0x1C
+        LD BC,#0x1C00
         DI
         OUT	(C),A ; PSGレジスタ番号
         DEC B
         IN A,(C) ; データ読み込み
         EI
-        POP BC
+    POP BC
+    RET
+RDPSG_PORT_A:
+    PUSH BC
+        LD BC,#0x1C07
+        DI
+        OUT (C),C
+        DEC B
+        IN A,(C)
+        AND #0x3F
+        OUT (C),A
+        EI
+    POP BC
+    PUSH HL
+        LD HL,#PSG_REG15
+        BIT 6,(HL)
+        JR Z,RDPSG_JOYSTICK1
+RDPSG_JOYSTICK2:
+        BIT 5,(HL)
+        LD A,#15
+        JR Z,RDPSG_JOYSTICK
+RDPSG_EXIT:
+    POP HL
+    LD A,#0xFF
+    RET
+RDPSG_JOYSTICK1:
+        BIT 4,(HL)
+        JR NZ,RDPSG_EXIT
+RDPSG_JOYSTICK:
+        LD A,#14
+        CALL RDPSG_SUB
+        ; 11BARLDU MSX
+        ; -BA-RLDU X1
+        LD H,A
+        AND #0x0F
+        LD L,A
+        SRL H
+        LD A,H
+        AND #0x30
+        OR #0xC0
+        OR L
+    POP HL
     RET
 
 ; GTSTCK (00D5H/MAIN)

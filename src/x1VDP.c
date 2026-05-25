@@ -7,6 +7,7 @@ typedef uint16_t u32;
 #include <catZ80Lib.h>
 #include <string.h>
 #endif // __WIN32
+#include "x1VDP.h"
 #include "x1VdpSprite.h"
 
 #define USE_DMA (1)
@@ -19,6 +20,8 @@ extern u16 SPRITE_PATTERN_GENERATOR_TABLE_ADDRESS;
 
 // VDPレジスタ
 u8 vdp[8];
+// スクリーンモード
+static u8 screenMode = 0;
 
 static void
 pcgInit() __naked
@@ -55,8 +58,16 @@ setPcg(u16 pcgPattern, u16 charNo) __naked
     out (c),e
 
     ; pcg書き込む 
+    ; 0x000-0x0FF : 青色に書き込む
+    ; 0x100-0x1FF : 赤色に書き込む
+    ; 0x200-0x2FF : 緑色に書き込む
+    LD A,#0x15 + 1
+    ADD A,D
+    LD B,A
+    INC C
+
     ; b
-    ld bc, #(0x1500 + 0x100)
+    ;ld bc, #(0x1500 + 0x100)
     ;call pcgWriteSub
     ; r
     ;ld bc, #(0x1600 + 0x100)
@@ -336,6 +347,35 @@ CLRSPR()
     }
 }
 
+static void
+waku()
+{
+    // 枠部分を黒にしとく
+    for(u8 y = 0; y < 24; ++y) {
+        for(u8 x = 0; x < 4; ++x) { outp(0x2000 + y * 40 + x, 0x00); }
+        for(u8 x = 36; x < 40; ++x) { outp(0x2000 + y * 40 + x, 0x00); }
+    }
+    for(u8 x = 0; x < 40; ++x) { outp(0x2000 + 24 * 40 + x, 0x00); }
+}
+
+static void
+vdpSetGraphic1()
+{
+    screenMode = 1;
+    x1_dmaFillVRAM(0x2000, 40*25,  0x20 + 0x01); // PCG Color1
+    waku();
+}
+
+static void
+vdpSetGraphic2()
+{
+    screenMode = 2;
+    x1_dmaFillVRAM(0x2000,         40*8,  0x20 + 0x01); // PCG Color1
+    x1_dmaFillVRAM(0x2000 + 40* 8, 40*8,  0x20 + 0x02); // PCG Color2
+    x1_dmaFillVRAM(0x2000 + 40*16, 40*8,  0x20 + 0x04); // PCG Color4
+    waku();
+}
+
 void
 vdpInit()
 {
@@ -353,18 +393,9 @@ vdpInit()
     }
 
     // テキスト初期化
-    x1_dmaFillVRAM(0x2000, 80*25,  0x27); // PCG Color7
-    x1_dmaFillVRAM(0x3000, 0xD800, 0x00); // TEXT & GCLS
-    // 枠部分を黒にしとく
-    for(u8 y = 0; y < 24; ++y) {
-        for(u8 x = 0; x < 4; ++x) { outp(0x2000 + y * 40 + x, 0x00); }
-        for(u8 x = 36; x < 40; ++x) { outp(0x2000 + y * 40 + x, 0x00); }
-    }
+    vdpSetGraphic1();
     for(u8 x = 0; x < 40; ++x) { outp(0x2000 + 24 * 40 + x, 0x00); }
-
-    // PSG初期化
-    outp(0x1C00, 0x0F);
-    outp(0x1B00, 0x8F);
+    x1_dmaFillVRAM(0x3000, 0xD800, 0x00); // TEXT & GCLS
 
     // PCG初期化
     pcgInit();
@@ -379,28 +410,35 @@ vdpRender()
     //outp(0x1fd0, bank);
     //bank ^= 0x18;
 
+#if 1
+    static u8 charNo = 0;
     u16 pcgPattern;
     if(((vdp[0] & 0x0E) == 0)
         && ((vdp[1] & 0x18) == 0)) {
+        // GRAHIC1
+        if(screenMode != 1) {
+            vdpSetGraphic1();
+        }
         pcgPattern = (u16)VRAM + ((u16)(vdp[4] & 0x3F) << 11);
-    } else {
-        pcgPattern = (u16)VRAM + ((u16)(vdp[4] & 0x3C) << 11);
-    }
-#if 1
-    static u8 charNo = 0;
-    // GRAHIC1
-    //u16 pcgPattern = (u16)VRAM + ((u16)(vdp[4] & 0x3F) << 11);
-    // GRAHIC2,GRAHIC3
-    //u16 pcgPattern = (u16)VRAM + ((u16)(vdp[4] & 0x3C) << 11);
-    pcgPattern += (u16)charNo * 8;
-    //for(u16 charNo = 0; charNo < 256; ++charNo) {
+        pcgPattern += (u16)charNo * 8;
         setPcg(pcgPattern, charNo);
-        pcgPattern += 8;
-    //}
+    } else {
+        // GRAHIC2,GRAHIC3
+        if(screenMode != 2) {
+            vdpSetGraphic2();
+        }
+        pcgPattern = (u16)VRAM + ((u16)(vdp[4] & 0x3C) << 11);
+        pcgPattern += (u16)charNo * 8;
+        // 上側
+        setPcg(pcgPattern, charNo);
+        // 真ん中
+        pcgPattern += 256*8;
+        setPcg(pcgPattern, 0x100 | charNo);
+        // 下側
+        pcgPattern += 256*8;
+        setPcg(pcgPattern, 0x200 | charNo);
+    }
     charNo++;
-//        setPcg(pcgPattern, charNo);
-//        pcgPattern += 8;
-//    charNo++;
 #else
     for(u16 charNo = 0; charNo < 256; ++charNo) {
         setPcg(pcgPattern, charNo);
