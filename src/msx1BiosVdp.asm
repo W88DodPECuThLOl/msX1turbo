@@ -143,14 +143,16 @@ _SETRD:
 ; 変更レジスタ
 ; AF
 _SETWRT:
+    PUSH HL
 .if VRAM == #0x8000
-    RES 6,H ; VRAM 0x8000～0xBFFF
-    SET 7,H
+        RES 6,H ; VRAM 0x8000～0xBFFF
+        SET 7,H
 .else
-    SET 6,H ; VRAM 0x4000～0x7FFF
-    RES 7,H
+        SET 6,H ; VRAM 0x4000～0x7FFF
+        RES 7,H
 .endif
-    LD (VRAM_ACCESS_POINTER),HL
+        LD (VRAM_ACCESS_POINTER),HL
+    POP HL
     RET
 
 ; VDP書き込みのIN/OUT命令のフック処理

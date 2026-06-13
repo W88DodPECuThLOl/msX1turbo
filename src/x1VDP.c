@@ -15,6 +15,8 @@ typedef uint16_t u32;
 #define VRAM ((u8*)0x8000)
 #define LINE_ADDRESS_TABLE ((u16*)0x1000)
 #define SPRITE_ATTRIBUTE_BUFFER 0x2000
+#define SPRITE_ERACE_LIST (0x1800)
+static u8* eraseList;
 
 extern u16 SPRITE_PATTERN_GENERATOR_TABLE_ADDRESS;
 
@@ -155,30 +157,42 @@ renderSpriteMode1_size16x16(u8* spriteAttributeTableAddress)
     u8 patternNo = spriteAttributeTableAddress[2];
     patternNo &= 0xFC;
     const u8* spritePatternAddress = (const u8*)(SPRITE_PATTERN_GENERATOR_TABLE_ADDRESS + ((u16)patternNo << 3));
-    setSpritePatternAddress16x16(spritePatternAddress);
+//    setSpritePatternAddress16x16(spritePatternAddress);
 
     u8 y = spriteAttributeTableAddress[0];
     const u16* lineAdr = LINE_ADDRESS_TABLE + y;
-
+*eraseList++ = 0x21; *((u16*)eraseList) = (u16)lineAdr; eraseList += 2;
+*eraseList++ = 0x1E;
     u8 x = spriteAttributeTableAddress[1];
     if(spriteAttributeTableAddress[3] & 0x80) {
         // EC
+*eraseList++ = (x >> 3); // LD E,nn
+*eraseList++ = 0xCD;
         if(x & 7) {
-            setShiftCountAndOffset16x16(8 - (x & 7), (x >> 3));
-            draw16x16_shift(lineAdr);
+            //setShiftCountAndOffset16x16(8 - (x & 7), (x >> 3));
+            setShiftCountAndOffset16x16(x & 7, (x >> 3));
+            draw16x16_shift(lineAdr, spritePatternAddress);
+*((u16*)eraseList) = (u16)erase24x16;
         } else {
-            setShiftCountAndOffset16x16(8, (x >> 3));
-            draw16x16(lineAdr);
+            setShiftCountAndOffset16x16(0, (x >> 3));
+            draw16x16(lineAdr, spritePatternAddress);
+*((u16*)eraseList) = (u16)erase16x16;
         }
     } else {
+*eraseList++ = (x >> 3) + 4; // LD E,nn
+*eraseList++ = 0xCD;
         if(x & 7) {
-            setShiftCountAndOffset16x16(8 - (x & 7), (x >> 3) + 4);
-            draw16x16_shift(lineAdr);
+//            setShiftCountAndOffset16x16(8 - (x & 7), (x >> 3) + 4);
+            setShiftCountAndOffset16x16(x & 7, (x >> 3) + 4);
+            draw16x16_shift(lineAdr, spritePatternAddress);
+*((u16*)eraseList) = (u16)erase24x16;
         } else {
-            setShiftCountAndOffset16x16(8, (x >> 3) + 4);
-            draw16x16(lineAdr);
+            setShiftCountAndOffset16x16(0, (x >> 3) + 4);
+            draw16x16(lineAdr, spritePatternAddress);
+*((u16*)eraseList) = (u16)erase16x16;
         }
     }
+    eraseList += 2;
 }
 
 static void
@@ -190,17 +204,29 @@ renderSpriteMode1_size8x8(const u8* spriteAttributeTableAddress)
     const u8* spritePatternAddress = (const u8*)(SPRITE_PATTERN_GENERATOR_TABLE_ADDRESS + ((u16)patternNo << 3));
     setSpritePatternAddress8x8(spritePatternAddress);
     u8 x = spriteAttributeTableAddress[1];
+*eraseList++ = 0x1E;
     if(spriteAttributeTableAddress[3] & 0x80) {
         // EC
         setShiftCountAndOffset8x8(8 - (x & 7), (x >> 3));
+*eraseList++ = (x >> 3); // LD E,nn
     } else {
         setShiftCountAndOffset8x8(8 - (x & 7), (x >> 3) + 4);
+*eraseList++ = (x >> 3) + 4; // LD E,nn
     }
     u8 y = spriteAttributeTableAddress[0];
     const u16* lineAdr = LINE_ADDRESS_TABLE + y;
+*eraseList++ = 0x21; *((u16*)eraseList) = (u16)lineAdr; eraseList += 2;
     draw8x8(lineAdr, x & 7);
+*eraseList++ = 0xCD;
+    if(x & 7) {
+        *((u16*)eraseList) = (u16)erase16x8;
+    } else {
+        *((u16*)eraseList) = (u16)erase8x8;
+    }
+eraseList += 2;
 }
 
+#if 0
 
 static void
 eraseSpriteSize8x8(const u8* spriteAttributeTableAddress)
@@ -238,52 +264,58 @@ eraseSpriteSize16x16(u8* spriteAttributeTableAddress)
     }
 }
 
+#endif
+
 static void
 eraseSprite() __naked
 {
     __asm
-        LD HL,#SPRITE_ATTRIBUTE_BUFFER
-        LD A,(#(_vdp + 1))
-        BIT	1,A
-        JR Z,3000010$
-3000000$:
-            LD A,(HL)
-            CP #208
-            RET Z
-            CP #(192-8)
-            JR NC,3000001$
-
-            PUSH HL
-            CALL _eraseSpriteSize16x16
-            POP HL
-
-3000001$:
-            LD A,L
-            ADD #4
-            LD L,A
-            CP #(0x04*32)
-            JR NZ,3000000$
-        RET
-
-3000010$:
-            LD A,(HL)
-            CP #208
-            RET Z
-            CP #(192-8)
-            JR NC,3000011$
-
-            PUSH HL
-            CALL _eraseSpriteSize8x8
-            POP HL
-
-3000011$:
-            LD A,L
-            ADD #4
-            LD L,A
-            CP #(0x04*32)
-            JR NZ,3000010$
-        RET
+        .DB 0xC3,0x00,0x18
     __endasm;
+
+//     __asm
+//         LD HL,#SPRITE_ATTRIBUTE_BUFFER
+//         LD A,(#(_vdp + 1))
+//         BIT	1,A
+//         JR Z,3000010$
+// 3000000$:
+//             LD A,(HL)
+//             CP #208
+//             RET Z
+//             CP #(192-8)
+//             JR NC,3000001$
+// 
+//             PUSH HL
+//             CALL _eraseSpriteSize16x16
+//             POP HL
+// 
+// 3000001$:
+//             LD A,L
+//             ADD #4
+//             LD L,A
+//             CP #(0x04*32)
+//             JR NZ,3000000$
+//         RET
+// 
+// 3000010$:
+//             LD A,(HL)
+//             CP #208
+//             RET Z
+//             CP #(192-8)
+//             JR NC,3000011$
+// 
+//             PUSH HL
+//             CALL _eraseSpriteSize8x8
+//             POP HL
+// 
+// 3000011$:
+//             LD A,L
+//             ADD #4
+//             LD L,A
+//             CP #(0x04*32)
+//             JR NZ,3000010$
+//         RET
+//     __endasm;
 }
 
 static void
@@ -387,7 +419,7 @@ vdpInit()
     outp(0x1200, 0xF0); // グラフィックパレット
 
     // グラフィックのY軸のアドレスの事前計算
-    for(int y = 0; y < 256; ++y) {
+    for(int y = 0; y < 256 + 15; ++y) {
         int yy = (1 + y) & 0xFF;
         LINE_ADDRESS_TABLE[y] = 0xC000 | (((yy & 7) << 11) + (yy / 8) * 40);
     }
@@ -399,6 +431,9 @@ vdpInit()
 
     // PCG初期化
     pcgInit();
+
+    eraseList = (u8*)SPRITE_ERACE_LIST;
+    *eraseList = 0xC9; // RET
 }
 
 void
@@ -454,5 +489,7 @@ vdpRender()
     // スプライト描画
     u8* spriteAttributeTableAddress = VRAM + ((u16)vdp[5] << 7);
     memcpy((u8*)SPRITE_ATTRIBUTE_BUFFER, spriteAttributeTableAddress, 4 * 32);
+    eraseList = (u8*)SPRITE_ERACE_LIST;
     renderSprite(); // @todo 高速化すること
+    *eraseList = 0xC9; // RET
 }
