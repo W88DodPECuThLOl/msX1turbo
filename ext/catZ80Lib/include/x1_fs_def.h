@@ -86,53 +86,57 @@ extern FileSystemContext gFileSystemContext;
 /**
  * @brief 成功
  */
-#define FILE_SYSTEM_SUCCESS  (0)
+#define FILE_SYSTEM_SUCCESS  ((u8)0)
 
 /**
  * @brief エラー無し
  */
-#define FILE_SYSTEM_NO_ERROR (0)
+#define FILE_SYSTEM_NO_ERROR ((u8)0)
 
 /**
  * @brief エラー
  */
-#define FILE_SYSTEM_ERROR (0x80 + 0)
+#define FILE_SYSTEM_ERROR ((u8)(0x80 + 0))
 
 /**
  * @brief ドライブ名が不正です。
  */
-#define FILE_SYSTEM_ERROR_INVALID_DRIVE_NAME (0x80 + 10)
+#define FILE_SYSTEM_ERROR_INVALID_DRIVE_NAME ((u8)(0x80 + 10))
 /**
  * @brief ドライブ番号が不正です。
  */
-#define FILE_SYSTEM_ERROR_INVALID_DRIVE_NO   (0x80 + 11)
+#define FILE_SYSTEM_ERROR_INVALID_DRIVE_NO   ((u8)(0x80 + 11))
 /**
  * @brief ファイル名が不正です。
  */
-#define FILE_SYSTEM_ERROR_BAD_FILE_NAME      (0x80 + 12)
+#define FILE_SYSTEM_ERROR_BAD_FILE_NAME      ((u8)(0x80 + 12))
 /**
  * @brief ファイルが見つかりませんでした。
  */
-#define FILE_SYSTEM_ERROR_FILE_NOT_FOUND     (0x80 + 13)
+#define FILE_SYSTEM_ERROR_FILE_NOT_FOUND     ((u8)(0x80 + 13))
 /**
  * @brief デバイスがオフラインでした。
  */
-#define FILE_SYSTEM_ERROR_DEVICE_OFFLINE     (0x80 + 14)
+#define FILE_SYSTEM_ERROR_DEVICE_OFFLINE     ((u8)(0x80 + 14))
 /**
  * @brief 読み込みに失敗しました。
  */
-#define FILE_SYSTEM_ERROR_READ               (0x80 + 15)
+#define FILE_SYSTEM_ERROR_READ               ((u8)(0x80 + 15))
 
+/**
+ * @brief インフォメーションブロックからファイルサイズを取得する
+ * @param[in] infomationBlock インフォメーションブロック
+ * @return ファイルサイズ
+ */
 inline u32
-x1_fileGetInfomationBlockFileSize(const u8* infomationBlock)
-{
-    return (u16)infomationBlock[18] | ((u16)infomationBlock[19] << 8);
-}
+x1_fileGetInfomationBlockFileSize(const u8* infomationBlock) { return (u16)infomationBlock[18] | ((u16)infomationBlock[19] << 8); }
 
+/**
+ * @brief インフォメーションブロックから開始クラスタを取得する
+ * @param[in] infomationBlock インフォメーションブロック
+ * @return 開始クラスタ
+ */
 inline u32
-x1_fileGetInfomationBlockStartCluster(const u8* infomationBlock)
-{
-    return (u32)infomationBlock[30] | ((u32)infomationBlock[31] << 8) | ((u32)infomationBlock[29] << 16);
-}
+x1_fileGetInfomationBlockStartCluster(const u8* infomationBlock) { return (u32)infomationBlock[30] | ((u32)infomationBlock[31] << 8) | ((u32)infomationBlock[29] << 16); }
 
 #endif // INCL_x1_fs_def__h

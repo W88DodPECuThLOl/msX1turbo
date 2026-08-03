@@ -1,12 +1,14 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM Batch File for Building the File Selection Binary
+
 set BASE_DIR=%~dp0
-set TARGET=%BASE_DIR%msX1turbo.BIN
-set PACKAGE=%BASE_DIR%msX1turbo.d88
+set TARGET=%BASE_DIR%msX1turbo.Sys
+set PACKAGE=
 
 set OBJ_DIR=%BASE_DIR%obj
-set SRC_DIR=%BASE_DIR%src
+set SRC_DIR=%BASE_DIR%src\loader
 set RES_DIR=%BASE_DIR%res
 
 set CAT_Z80_LIB_ROOT=ext\catZ80lib
@@ -32,14 +34,16 @@ REM Copyright (C) 2022 by M.Ishino (AILight)
 set AILZ80ASM=AILZ80ASM.exe
 
 set LINK=sdcc
-set LINK_FLAGS=-mz80 --out-fmt-ihx --no-std-crt0 --code-loc 0x3000 --data-loc 0
+set LINK_FLAGS=-mz80 --out-fmt-ihx --no-std-crt0 --code-loc 0x1000 --data-loc 0
 
 REM hudisk https://github.com/BouKiCHi/HuDisk
 REM HuDisk ver 1.20
 set HUDISK=hudisk.exe
 
 echo.
-echo [96mPackage     %PACKAGE%[0m
+if not "%PACKAGE%" == "" (
+    echo [96mPackage     %PACKAGE%[0m
+)
 echo [96mMakeTarget  %TARGET%[0m
 echo [96mSourceFiles %SRC_DIR%[0m
 echo.
@@ -48,16 +52,18 @@ echo.
 	pushd %~dp0
     call :clean_up
 
-    echo.
-    echo =========================================================
-    @echo [96mbuild "%SRC_DIR%\x1_custom_crt0.S"[0m
-    echo =========================================================
-    echo.
-    %ASM% %ASM_FLAGS% -o %OBJ_DIR%\x1_custom_crt0.rel %SRC_DIR%\x1_custom_crt0.S
-    if %errorlevel% neq 0 (
-        echo [41mbuild error[0m
-        pause
-        exit /b 1
+    if exist "%SRC_DIR%\x1_custom_crt0.S" (
+        echo.
+        echo =========================================================
+        @echo [96mbuild "%SRC_DIR%\x1_custom_crt0.S"[0m
+        echo =========================================================
+        echo.
+        %ASM% %ASM_FLAGS% -o %OBJ_DIR%\x1_custom_crt0.rel %SRC_DIR%\x1_custom_crt0.S
+        if %errorlevel% neq 0 (
+            echo [41mbuild error[0m
+            pause
+            exit /b 1
+        )
     )
 
     echo.
@@ -112,24 +118,24 @@ echo.
     echo [92mSuccess "%TARGET%"[0m
     echo.
 
-    echo.
-    echo =========================================================
-    @echo [96mbuild package[0m
-    echo =========================================================
-    echo.
-    call :package
-    if %errorlevel% neq 0 (
-        echo [41mPackage error "%PACKAGE%"[0m
-        pause
-        exit /b 1
+    if not "%PACKAGE%"=="" (
+        echo.
+        echo =========================================================
+        @echo [96mbuild package[0m
+        echo =========================================================
+        echo.
+        call :package
+        if %errorlevel% neq 0 (
+            echo [41mPackage error "%PACKAGE%"[0m
+            pause
+            exit /b 1
+        )
+        echo.
+        echo =========================================================
+        echo [92mSuccess "%PACKAGE%"[0m
+        echo =========================================================
+        echo.
     )
-    popd
-
-    echo.
-    echo =========================================================
-    echo [92mSuccess "%PACKAGE%"[0m
-    echo =========================================================
-    echo.
 
     popd
     ENDLOCAL
@@ -146,6 +152,8 @@ exit /b
         del "%OBJ_DIR%\*.ihx" 2> nul
         del "%OBJ_DIR%\*.lk" 2> nul
         del "%OBJ_DIR%\*.map" 2> nul
+        del "%OBJ_DIR%\*.noi" 2> nul
+        del "%OBJ_DIR%\*.adb" 2> nul
     ) else (
         mkdir "%OBJ_DIR%"
     )
@@ -183,37 +191,37 @@ exit /b %errorlevel%
     if %errorlevel% neq 0 (
         exit /b %errorlevel%
     )
-    makebin -p -s 65536 -o 12288 "%OBJ_DIR%\temp.ihx" %TARGET%
+    makebin -p -s 65536 -o 0 "%OBJ_DIR%\temp.ihx" %TARGET%
 exit /b %errorlevel%
 
 :package
     @echo package "%PACKAGE%"
 
-    REM S-OS System Disc
-    if exist "%RES_DIR%\SWXCV110.d88" (
-        @echo   using "%RES_DIR%\SWXCV110.d88"
-        copy "%RES_DIR%\SWXCV110.d88" "%PACKAGE%" > nul
-    )
-
-    if exist "%RES_DIR%\AUTOEXEC.BAT" (
-        @echo   add "%RES_DIR%\AUTOEXEC.BAT"
-        %HUDISK% "%PACKAGE%" -a "%RES_DIR%\AUTOEXEC.BAT" > nul
-        if %errorlevel% neq 0 (
-            exit /b %errorlevel%
-        )
-    )
-
-    for /r "%RES_DIR%" %%i in (*.rom) do (
-        @echo   add "%%i"
-        %HUDISK% "%PACKAGE%" -a "%%i"  --read 4000 --go 3000 > nul
-        if %errorlevel% neq 0 (
-            exit /b %errorlevel%
-        )
-    )
-
-    @echo   add "%TARGET%" read:3000 go:3000
-    %HUDISK% "%PACKAGE%" -a "%TARGET%" --read 3000 --go 3000 > nul
+    @echo   add "%TARGET%" as boot image
+    %HUDISK% "%PACKAGE%" --format  "%TARGET%" --ipl "msX1turbo" > nul
     if %errorlevel% neq 0 (
         exit /b %errorlevel%
+    )
+
+    for /r "%RES_DIR%" %%i in (*.ROM) do (
+        @echo   add "%%i"
+        %HUDISK% "%PACKAGE%" -a "%%i"  --read 4000 --go 4000 > nul
+        if %errorlevel% neq 0 (
+            exit /b %errorlevel%
+        )
+    )
+    for /r "%RES_DIR%" %%i in (*.0??) do (
+        @echo   add "%%i"
+        %HUDISK% "%PACKAGE%" -a "%%i"  --read 4000 --go 4000 > nul
+        if %errorlevel% neq 0 (
+            exit /b %errorlevel%
+        )
+    )
+    for /r "%RES_DIR%" %%i in (*.ips) do (
+        @echo   add "%%i"
+        %HUDISK% "%PACKAGE%" -a "%%i"  --read C000 --go C000 > nul
+        if %errorlevel% neq 0 (
+            exit /b %errorlevel%
+        )
     )
 exit /b %errorlevel%

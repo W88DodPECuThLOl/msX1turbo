@@ -19,6 +19,7 @@
 
 #if !defined(CAT_Z80_LIB_DISABLE_X1_EMM_FUNCTIONS)
 #include "x1_emm0_copyFromEmm0.h"
+#include "x1_emm0_copyToEmm0.h"
 #include "x1_emm0_copyToBank0FromEmm0.h"
 #include "x1_emm0_copyToBank1FromEmm0.h"
 #include "x1_emm0_readByteFromEmm0.h"
@@ -70,8 +71,11 @@
 
 #if !defined(CAT_Z80_LIB_DISABLE_X1_DISK_FUNCTIONS)
 #include "x1_disk_def.h"
+#include "x1_disk_initialize.h"
+#include "x1_disk_mortorOff.h"
 #include "x1_disk_readRecord.h"
 #include "x1_disk_readRecords.h"
+#include "x1_disk_seek.h"
 #include "x1_disk_waitForNotBusy.h"
 #include "x1_disk_waitForReady.h"
 #endif // !defined(CAT_Z80_LIB_DISABLE_X1_DISK_FUNCTIONS)
@@ -83,10 +87,12 @@
 #include "x1_file_getFileInfomationBlock.h"
 #include "x1_file_getFileSize.h"
 #include "x1_file_initialize.h"
+#include "x1_file_normalizeFileName.h"
 #include "x1_file_readFat.h"
 #include "x1_file_readFile.h"
 #include "x1_file_setCurrentDriveNo.h"
 #include "x1_file_terminate.h"
+#include "x1_file_enumerateInfomationBlock.h"
 #include "x1_fs_def.h"
 #endif // !defined(CAT_Z80_LIB_DISABLE_X1_FILE_FUNCTIONS)
 #endif // !defined(CAT_Z80_LIB_DISABLE_X1_FUNCTIONS)
