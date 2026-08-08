@@ -193,10 +193,14 @@ exit /b %errorlevel%
 :package
     @echo package "%PACKAGE%"
 
-    @echo   add "%TARGET%" as boot image
-    %HUDISK% "%PACKAGE%" --format  "%TARGET%" --ipl "msX1turbo" > nul
-    if %errorlevel% neq 0 (
-        exit /b %errorlevel%
+    if exist "%TARGET%" (
+        @echo   add "%TARGET%" as boot image
+        %HUDISK% "%PACKAGE%" --format  "%TARGET%" --ipl "msX1turbo" > nul
+        if %errorlevel% neq 0 (
+            exit /b %errorlevel%
+        )
+    ) else (
+        %HUDISK% "%PACKAGE%" --format  "%TARGET%"
     )
 
     if exist "msX1turbo.BIN" (

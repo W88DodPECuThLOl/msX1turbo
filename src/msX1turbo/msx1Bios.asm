@@ -169,14 +169,30 @@ _INITIALIZE:
     LD (0x002C),A
     ; MSX 1
     LD (0x002D),A
+
+    ; ------------------------------
+    ; キーボード関連の初期設定
+    ; ------------------------------
+    ; 旧キーの状態
+    ; 新キーの状態
+    LD HL,#OLDKEY ; 11バイト 旧キーの状態
+    LD DE,#OLDKEY+1
+    LD BC,#22-1
+    LD (HL),#0xFF
+    LDIR
     ;
     LD A,#1
-    LD (SCNCNT),A
+    LD (SCNCNT),A  ; 1バイト キースキャンの時間間隔
     ;
+    LD HL,#KEYBUF
+    LD (PUTPNT),HL ; 2バイト キーバッファへの書き込みを行う番地を指す
+    LD (GETPNT),HL ; 2バイト キーバッファからの読み込みを行う番地を指す
+
+    ; ------------------------------
     LD HL,#0x0000
     LD (JIFFY),HL
-    ; 割り込み
-    MSX_BIOS 0x0038, INT
+    ;
+    LD (0x0036),HL
     ; 
     LD A,#VDP_DR
     LD (0x0006),A
@@ -186,10 +202,11 @@ _INITIALIZE:
     MSX_BIOS 0x000C, _RDSLT
     MSX_BIOS 0x0020, _DCOMPR
     MSX_BIOS 0x0024, _ENASLT
+    MSX_BIOS 0x0038, INT              ; 割り込み
     MSX_BIOS_NOT_IMPL 0x003B, _INITIO
     MSX_BIOS_NOT_IMPL 0x003E, _INIFNK
-    MSX_BIOS_NOT_IMPL 0x0041, _DISSCR ; 画面表示を禁止します。
-    MSX_BIOS_NOT_IMPL 0x0044, _ENASCR ; 画面を表示します。
+    MSX_BIOS 0x0041, _DISSCR ; 画面表示を禁止します。
+    MSX_BIOS 0x0044, _ENASCR ; 画面を表示します。
     MSX_BIOS 0x0047, _WRTVDP
     MSX_BIOS 0x004A, _RDVRM
     MSX_BIOS 0x004D, _WRTVRM
@@ -202,7 +219,9 @@ _INITIALIZE:
     MSX_BIOS 0x0069, _CLRSPR
     MSX_BIOS 0x006F, _INIT32
     MSX_BIOS 0x0072, _INIGRP
-    MSX_BIOS_NOT_IMPL 0x0084, _CALPAT
+    MSX_BIOS 0x0084, _CALPAT
+    MSX_BIOS 0x0087, _CALATR
+    MSX_BIOS 0x008A, _GSPSIZ
     MSX_BIOS_NOT_IMPL 0x008D, _GRPPRT ; グラフィック画面に文字を表示します。
     MSX_BIOS 0x0090, _GICINI
     MSX_BIOS 0x0093, _WRTPSG
@@ -223,6 +242,10 @@ _INITIALIZE:
     ; IO PATCH
     MSX_BIOS 0x0000, _IN_OUT_HOOK
     MSX_BIOS 0x0008, _BLOCK_IN_OUT_HOOK
+    MSX_BIOS 0x0010, IN_OUT_HOOK_OUT_0x99_A ; CHRGTR (0010H/MAIN) ; BASICテキストから文字（またはトークン）を取り出します。
+    MSX_BIOS 0x0018, IN_OUT_HOOK_IN_A_0x99  ; OUTDO (0018H/MAIN) 現在使っているデバイスに値を出力します。
+    MSX_BIOS 0x0028, IN_OUT_HOOK_PSG_AND_PPI ; GETYPR (0028H/MAIN)
+    MSX_BIOS 0x0030, IN_OUT_HOOK_OUT_0x98_A
 
     ; VDPレジスタ初期化
     LD HL,#VDP_INIT_DATA
@@ -256,15 +279,19 @@ VDP_INIT_DATA:
 INT:
     DI
     PUSH AF
+.ifdef BANK_MEMORY_VRAM
+        ; BANK切り替え中は割り込みを無視する
+        LD A,(0x02FF)
+        OR A
+        JP NZ,INT_EXIT
+.endif
+        ; 垂直帰線割り込みフラグをセット
+        LD A,#0x80
+        LD (STATFL),A
+
         LD A,(RG1SAV) ; VDPレジスタ1の保存場所
         BIT 5,A
         JP Z,INT_EXIT ; IRQが無効になっている
-
-.ifdef BANK_MEMORY_VRAM
-    LD A,(0x02FF)
-    OR A
-    JP NZ,INT_EXIT
-.endif
 
         PUSH HL
             LD HL, #0
@@ -283,7 +310,9 @@ INT:
             PUSH DE
             PUSH HL
                 ; 描画
-                CALL _vdpRender
+                LD A,(RG1SAV) ; VDPレジスタ1の保存場所
+                BIT 6,A ; VDP表示かどうか
+                CALL NZ,_vdpRender
 
                 ; CTC 再設定
             	LD  BC,#0x1FA0 + 3
@@ -292,8 +321,8 @@ INT:
                 OUT (C),L
 
                 ; 垂直帰線割り込みフラグをセット
-                LD A,#0x80
-                LD (STATFL),A
+                ;LD A,#0x80
+                ;LD (STATFL),A
             POP HL
             POP DE
             POP BC
@@ -308,6 +337,10 @@ INT:
             LD HL,(SP_SAVE)
             LD SP,HL
         POP HL
+
+;        LD A,(RG1SAV) ; VDPレジスタ1の保存場所
+;        BIT 5,A
+;        JP Z,INT_EXIT ; IRQが無効になっている
     POP AF
 
     ; HOOK呼び出し
@@ -407,8 +440,8 @@ RDSLT_SKIP:
 ;
 ; @param[in]    HL  比較する値1
 ; @param[in]    DE  比較する値2
-; @note 変更レジスタ AF
 ; @return 比較結果
+; @note 変更レジスタ AF
 ;;
 _DCOMPR:
     LD A,H

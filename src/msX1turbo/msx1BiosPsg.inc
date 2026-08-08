@@ -62,3 +62,8 @@
 ; AF
 ;;
     .globl _GTTRIG
+
+;;
+; PSGとPPI用のIOフック
+;;
+    .globl IN_OUT_HOOK_PSG_AND_PPI

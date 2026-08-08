@@ -14,6 +14,8 @@
 ; コントロールレジスタに書き込むときのフラグ
 VDP_ADDRESS_FETCH:
     .DB 0
+VDP_ADDRESS_FETCH1:
+    .DB 0xAA
 
 ;;
 ; @brief VDP書き込みのIN/OUT命令のフック処理
@@ -168,6 +170,125 @@ IN_OUT_HOOK_SET_WRITE_ADDRESS_HIGH_L:
 IN_OUT_HOOK_SET_WRITE_ADDRESS_EXIT:
         POP AF
     POP IX
+    RET
+
+;;
+; OUT (0x98),A
+; VDP ポート#0
+;;
+IN_OUT_HOOK_OUT_0x98_A:
+.ifdef BANK_MEMORY_VRAM
+    PUSH AF
+        LD A,I ; P/V 現在の割り込み許可フラグ
+                ; PE : 許可
+        JP PE,IFF2_ENABLE
+    POP AF
+    ; 割り込み禁止で呼び出された
+IFF2_DISABLE:
+    PUSH AF
+    PUSH BC
+        LD BC,#0x0B00
+        OUT (C),C
+
+        LD BC,(VRAM_ACCESS_POINTER)
+        LD (BC),A
+        INC BC
+        LD (VRAM_ACCESS_POINTER),BC
+
+        LD BC,#0x0B00
+        LD A,#0x10
+        OUT (C),A
+    POP BC
+    POP AF
+    RET
+    ; 割り込み許可で呼び出された
+IFF2_ENABLE:
+    POP AF
+    DI
+    PUSH AF
+    PUSH BC
+        LD BC,#0x0B00
+        OUT (C),C
+
+        LD BC,(VRAM_ACCESS_POINTER)
+        LD (BC),A
+        INC BC
+        LD (VRAM_ACCESS_POINTER),BC
+
+        LD BC,#0x0B00
+        LD A,#0x10
+        OUT (C),A
+    POP BC
+    POP AF
+    EI
+    RET
+.else
+    PUSH HL
+        LD HL,(VRAM_ACCESS_POINTER)
+        LD (HL),A
+        INC HL
+        LD (VRAM_ACCESS_POINTER),HL
+    POP HL
+    RET
+.endif
+
+;;
+; OUT (0x99),A
+; VDP ポート#1 コントロールレジスタへの書き込み
+;
+; 10...... ; レジスタ番号への書き込み
+; 00...... : READ
+; 01...... : WRITE
+;;
+IN_OUT_HOOK_OUT_0x99_A: ; OUT (0x99),A
+    PUSH HL
+        LD HL,#VDP_ADDRESS_FETCH1
+        RRC (HL) ; 15
+    POP HL
+    JR C,IN_OUT_HOOK_OUT_0x99_A_HIGH
+IN_OUT_HOOK_OUT_0x99_A_LOW:    
+    LD (VDP_ADDRESS_FETCH),A
+    RET
+
+IN_OUT_HOOK_OUT_0x99_A_HIGH:
+    BIT 7,A
+    JR NZ,IN_OUT_HOOK_OUT_0x99_A_REG
+    PUSH AF
+        AND #0x3F
+.ifdef VRAM_8000
+        ADD #0x80 ; VRAM 0x8000
+.else
+        ADD #0x40 ; VRAM 0x4000
+.endif
+        LD (VRAM_ACCESS_POINTER+1),A
+        LD A,(VDP_ADDRESS_FETCH)
+        LD (VRAM_ACCESS_POINTER),A
+    POP AF
+    RET
+
+IN_OUT_HOOK_OUT_0x99_A_REG:
+    PUSH AF
+    PUSH BC
+        AND #0x07
+        LD C,A
+        LD A,(VDP_ADDRESS_FETCH)
+        LD B,A
+        CALL WRTVDP_SUB
+    POP BC
+    POP AF
+    RET
+
+
+;;
+; IN A,(0x99)
+; VDP ポート#1 ステータスレジスタの読み込み
+;;
+IN_OUT_HOOK_IN_A_0x99: ; IN A,(0x99)
+    PUSH HL
+        LD HL,#STATFL
+        LD A,(HL)
+        RES 7,(HL)
+    POP HL
     RET
 
 ;;

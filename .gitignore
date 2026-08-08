@@ -38,6 +38,7 @@
 *.hex
 *.d88
 *.BIN
+*.Sys
 
 # Debug files
 *.dSYM/
@@ -63,4 +64,6 @@ dkms.conf
 *.noi
 *.ihx
 
+# etc
+*.rom
 obj

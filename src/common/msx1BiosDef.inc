@@ -54,9 +54,17 @@ CGPBAS .equ 0xF924 ; 2バイト 現在のパターンジェネレータテーブ
 PATBAS .equ 0xF926 ; 2バイト 現在のスプライトジェネレータテーブルのベースアドレス
 ATRBAS .equ 0xF928 ; 2バイト 現在のスプライトアトリビュートテーブルのベースアドレス
 
+CLIKFL .equ 0xFBD9 ; 1バイト キークリックフラグ
+OLDKEY .equ 0xFBDA ; 11バイト 旧キーの状態
+NEWKEY .equ 0xFBE5 ; 11バイト 新キーの状態
+KEYBUF .equ 0xFBF0 ; 40バイト キーコードバッファ
+BUFEND .equ 0xFC18 ;         KEYBUFの終り
+
 JIFFY  .equ 0xFC9E ; 2バイト PLAY文が内部で使用。BASICのシステム変数TIMEと同じ値を返す
 INTVAL .equ 0xFCA0 ; 2バイト インターバルの間隔。ON INTERVAL GOSUB文により設定される
 INTCNT .equ 0xFCA2 ; 2バイト インターバルのためのカウンタ
+SCRMOD .equ 0xFCAF ; 1バイト 現在のスクリーンモードの番号
+OLDSCR .equ 0xFCB0 ; 1バイト スクリーンモード保存エリア
 
 H_KEYI .equ 0xFD9A ; 5バイト HOOK H.KEYI 割り込み処理の始め、RS-232Cなど
 H_TIMI .equ 0xFD9F ; 5バイト HOOK H.TIMI タイマー割り込み処理の追加

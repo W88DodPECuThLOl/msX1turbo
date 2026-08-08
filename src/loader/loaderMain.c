@@ -120,24 +120,50 @@ static void
 internalPatch(u16 startAddress, u16 size)
 {
     for(u16 addr = startAddress + 0x0010; addr < startAddress + size; ++addr) {
-        if(*(u16*)addr == 0x79ED || *(u16*)addr == 0x98D3) {
+        if(*(u16*)addr == 0x79ED) {
             // OUT (C),A
-            // OUT (0x98),A
             *(u16*)addr = 0x77C7; // RST #0x00 : LD 0(IX),A
         } else if(*(u16*)addr == 0x78ED) {
             // IN A,(C)
             *(u16*)addr = 0x7EC7; // RST #0x00 : LD A,0(IX)
-        }
+#if 1 // 直接ポートを叩いている物の対処 VDP
+        } else if(*(u16*)addr == 0x98D3) {
+            // OUT (0x98),A
+            *(u16*)addr = 0x00F7; // RST #0x30 : NOP
+        } else if(*(u16*)addr == 0x99D3) {
+            // OUT (0x99),A
+            *(u16*)addr = 0x00D7; // RST #0x10 : NOP
+        } else if(*(u16*)addr == 0x99DB) {
+            // IN A,(0x99)
+            *(u16*)addr = 0x00DF; // RST #0x18 : NOP
+#endif
+#if 1 // 直接ポートを叩いている物の対処 PSG
+        } else if(*(u16*)addr == 0xA0D3) {
+            // OUT (0xA0),A
+            *(u16*)addr = 0xA0EF; // RST #0x28 : 0xA0
+        } else if(*(u16*)addr == 0xA1D3) {
+            // OUT (0xA1),A
+            *(u16*)addr = 0xA1EF; // RST #0x28 : 0xA1
+        } else if(*(u16*)addr == 0xA2DB) {
+            // IN A,(0xA2)
+            *(u16*)addr = 0xA2EF; // RST #0x28 : 0xA2
+#endif
+#if 1 // 直接ポートを叩いている物の対処 PPI
+        } else if(*(u16*)addr == 0xA9DB) {
+            // IN A,(0xA9)
+            *(u16*)addr = 0xA9EF; // RST #0x28 : 0xA9
+        } else if(*(u16*)addr == 0xAAD3) {
+            // OUT (0xAA),A
+            *(u16*)addr = 0xAAEF; // RST #0x28 : 0xAA
+#endif
 #if 0
-        else if(*(u16*)addr == 0x41ED) {
+        } else if(*(u16*)addr == 0x41ED) {
             // OUT (C),B
             *(u16*)addr = 0x70C7; // RST #0x00 : LD 0(IX),B
         } else if(*(u16*)addr == 0x49ED) {
             // OUT (C),C
             *(u16*)addr = 0x71C7; // RST #0x00 : LD 0(IX),C
-        }
-//#endif
-        else if(*(u16*)addr == 0x51ED) {
+        } else if(*(u16*)addr == 0x51ED) {
             // OUT (C),D
             *(u16*)addr = 0x72C7; // RST #0x00 : LD 0(IX),D
         } else if(*(u16*)addr == 0x59ED) {
@@ -156,9 +182,8 @@ internalPatch(u16 startAddress, u16 size)
         } else if(*(u16*)addr == 0xBBED) {
             // OTDR
             *(u16*)addr = 0x0000; // NOP
-        }
 #endif
-        else if(*(u16*)addr == 0xA3ED) {
+        } else if(*(u16*)addr == 0xA3ED) {
             // OUTI
             *(u16*)addr = 0x00CF; // RST #0x08 : NOP
         }

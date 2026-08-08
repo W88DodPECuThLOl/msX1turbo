@@ -9,6 +9,32 @@
 .include /msx1BiosVdp.inc/
 
 ;;
+; @brief DISSCR (0041H/MAIN)
+; 画面表示を禁止します。
+; 
+; @note 変更レジスタ AF,BC
+;;
+_DISSCR:
+    LD A,(RG1SAV)
+    AND #0xBF
+    LD B,A
+    LD C,#0x01
+    JP _WRTVDP
+
+;;
+; @brief ENASCR (0044H/MAIN)
+; 画面を表示します。
+; 
+; @note 変更レジスタ AF,BC
+;;
+_ENASCR:
+    LD A,(RG1SAV)
+    OR #0x40
+    LD B,A
+    LD C,#0x01
+    JP _WRTVDP
+
+;;
 ; @brief SETRD (0050H/MAIN)
 ; VDPにVRAMアドレスをセットして、読み出せる状態にします。
 ; このルーチンはVDPのアドレスオートインクリメントの機能を使って、
@@ -50,6 +76,71 @@ _SETWRT:
         ; メモ）VDPのレジスタを設定するときに割り込みを無効にし、その後有効にしているので
         EI
     POP HL
+    RET
+
+;;
+; @brief CALPAT (0084H/MAIN)
+; スプライトジェネレータテーブルの開始アドレスを獲得します。
+;
+; @param[in]    A   スプライト番号
+; @return       HL  アドレス
+; @note 変更レジスタ AF,DE,HL
+;;
+_CALPAT:
+    LD DE,(PATBAS)
+    LD L,A
+    LD H,#0x00
+    LD A,(RG1SAV)
+    AND #0x02 ; SI  0:8x8  1:16x16
+    JR Z,CALPAT8x8
+CALPAT16x16:
+    ADD HL,HL
+    ADD HL,HL
+CALPAT8x8:
+    ADD HL,HL
+    ADD HL,HL
+    ADD HL,HL
+    ADD HL,DE
+    RET
+
+;;
+; @brief CALATR (0087H/MAIN)
+; スプライトアトリビュートテーブルの開始アドレスを獲得します。
+;
+; @param[in]    A   スプライト番号
+; @return       HL  アドレス
+; @note 変更レジスタ AF,DE,HL
+;;
+_CALATR:
+    ; HL=ATRBAS + A * 4
+    LD DE,(ATRBAS)
+    LD L,A
+    LD H,#0x00
+    ADD HL,HL
+    ADD HL,HL
+    ADD HL,DE
+    RET
+
+;;
+; @brief GSPSIZ (008AH/MAIN)
+; 現在のスプライトサイズを獲得します。
+;
+; @return   A   スプライトサイズ（バイト数）
+; @return   CF  16×16のサイズの場合のみセットし、それ以外のときはリセット
+; @note 変更レジスタ AF
+;;
+_GSPSIZ:
+    LD A,(RG1SAV) ; 
+    RRCA
+    RRCA
+    JR NC,GSPSIZ8x8
+; 16x16
+GSPSIZ16x16:
+    LD A,#0x20
+    RET
+; 8x8
+GSPSIZ8x8:
+    LD A,#0x08
     RET
 
 ;;

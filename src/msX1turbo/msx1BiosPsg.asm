@@ -284,3 +284,85 @@ GTTRIG_PORT1_BUTTON_B:
     BIT 6,A
     JR Z,GTTRIG_ON
     JR GTTRIG_OFF
+
+
+;;
+; OUT (0xA0),A
+;;
+IN_OUT_HOOK_OUT_0xA0_A:
+    LD A,(SAVE_A)
+    LD (PSG_REGISTER_NO),A
+    RET
+PSG_REGISTER_NO:
+    .DB 0x00
+
+;;
+; OUT (0xA1),A
+;;
+IN_OUT_HOOK_OUT_0xA1_A:
+    LD A,(SAVE_A)
+    PUSH DE
+        LD E,A
+        LD A,(PSG_REGISTER_NO)
+        CALL _WRTPSG
+    POP DE
+    LD A,(SAVE_A)
+    RET
+
+;;
+; IN A,(0xA2)
+;;
+IN_OUT_HOOK_IN_A_0xA2:
+    LD A,(PSG_REGISTER_NO)
+    JP _RDPSG
+
+;;
+; PPI
+;;
+IN_OUT_HOOK_OUT_0xAA_A:
+    LD A,(SAVE_A)
+    LD (PPI_REGISTER_NO),A
+    RET
+PPI_REGISTER_NO:
+    .DB 0x00
+
+;;
+; PPI
+;;
+IN_OUT_HOOK_IN_A_0xA9:
+    ;LD A,(SAVE_A)
+    LD A,#0xFF
+    RET
+
+;;
+; RST 0x28
+;;
+IN_OUT_HOOK_PSG_AND_PPI:
+    LD (SAVE_HL),HL
+    LD (SAVE_A),A
+    POP HL
+    LD A,(HL) ; 機能番号
+    INC HL
+    PUSH HL
+    LD HL,(SAVE_HL)
+    ; PSG
+    CP #0xA0
+    JP Z,IN_OUT_HOOK_OUT_0xA0_A
+    CP #0xA1
+    JP Z,IN_OUT_HOOK_OUT_0xA1_A
+    CP #0xA2
+    JP Z,IN_OUT_HOOK_IN_A_0xA2
+    ; PPI
+    CP #0xA9
+    JP Z,IN_OUT_HOOK_IN_A_0xA9
+    CP #0xAA
+    JP Z,IN_OUT_HOOK_OUT_0xAA_A
+    ;
+IN_OUT_HOOK_PSG_EXIT:
+    LD A,(SAVE_A)
+    RET
+
+SAVE_A:
+    .DB 0x00
+SAVE_HL:
+    .DW 0x00

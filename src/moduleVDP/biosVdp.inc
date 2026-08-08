@@ -9,6 +9,7 @@
 ; @note 変更レジスタ AF,BC
 ;;
     .globl _WRTVDP
+    .globl WRTVDP_SUB
 
 ;;
 ; @brief RDVRM (004AH/MAIN)

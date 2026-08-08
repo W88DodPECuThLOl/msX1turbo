@@ -76,23 +76,25 @@ vdpInit_LOOP2:
     ; PCG初期化
     CALL _pcgInit
 
+    ; 消去リスト初期化
+    LD HL,#_SPRITE_ERACE_LIST
+    CALL initEraceList
 .ifdef BANK_MEMORY_VRAM
     ; バンクメモリ0へ切り替え
     LD BC,#0x0B00
     OUT (C),C
 .endif
-
     ;eraseList = (u8*)SPRITE_ERACE_LIST;
     ;*eraseList = 0xC9; // RET
     LD A,#0xC9
     LD (_SPRITE_ERACE_LIST),A
-
 .ifdef BANK_MEMORY_VRAM
     ; メインメモリへ切り替え
     LD BC,#0x0B00
     LD A,#0x10
     OUT (C),A
 .endif
+
     RET
 
 _vdpRender:

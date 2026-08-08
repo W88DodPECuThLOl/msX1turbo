@@ -19,102 +19,170 @@
     .globl _SPRITE_ERACE_LIST
 .endif
 
+;;
+; @brief 消去リスト生成用のマクロ
+;
+; 消去リストは↓みたいな感じで１個につき8バイト。
+; スプライト32個で256バイトとなる。
+; +0 LD E,nn    ; 0x1E ((x >> 3) or (x >> 3)+4)
+; +2 LD HL,nnmm ; 0x21 (u16)lineAdr
+; +5 CALL xxxx  ; 0xCD _erase16x8 or _erase8x8
+; +8
+;
+; @param[in]    v   書き込む値
+; @note 変更レジスタ HL
+;;
+    .macro GENERATE_ERACE v
+        LD (HL),v
+.ifdef BANK_MEMORY_VRAM
+        INC L ; 256バイトアライメントされていると仮定
+.else
+        INC HL
+.endif
+    .endm
+
+    .macro GENERATE_ERACE_SKIP v
+.ifdef BANK_MEMORY_VRAM
+        INC L ; 256バイトアライメントされていると仮定
+.else
+        INC HL
+.endif
+    .endm
+
+;;
+; @brief 消去リスト初期化
+;
+; @param[in]    HL  消去リストの開始アドレス
+; @note 変更レジスタ AF,BC,HL
+;;
+initEraceList:
+.ifdef BANK_MEMORY_VRAM
+    ; バンクメモリ0へ切り替え
+    LD BC,#0x0B00
+    OUT (C),C
+.endif
+    LD B,#32
+initEraceList_LOOP:
+        GENERATE_ERACE #0x1E
+        GENERATE_ERACE_SKIP #0x00
+        GENERATE_ERACE #0x21
+        GENERATE_ERACE_SKIP #0x00
+        GENERATE_ERACE_SKIP #0x00
+        GENERATE_ERACE #0xCD
+        GENERATE_ERACE_SKIP #0x00
+        GENERATE_ERACE_SKIP #0x00
+    DJNZ initEraceList_LOOP
+.ifdef BANK_MEMORY_VRAM
+    ; メインメモリへ切り替え
+    LD BC,#0x0B00
+    LD A,#0x10
+    OUT (C),A
+.endif
+    RET
+
 ;------------------------------------------------
 ; 8x8スプライト描画
 ;------------------------------------------------
 
-; 8x1描画
-; ・8x8サイズのスプライト描画用
-; HL : line address
-draw8x1:
-    EX DE,HL
-draw8x1_pattern_address:
-    LD HL,#0x0000
-draw8x1_next:
-    ; BC = (DE) + offset
-    LD A,(DE)
-    INC DE
-draw8x1_offset:
-    ADD A,#0x00
-    LD C,A
-    LD A,(DE)
-    JR NC,draw8x1_SKIP
-    INC A
-draw8x1_SKIP:
-    LD B,A
-    INC DE
-
-    IN A,(C)
-    OR (HL)
-    INC L
-    OUT (C),A
-    RET
-
+;;
 ; 8x1のシフト描画
 ; ・8x8サイズのスプライト描画用
 ; HL : line address
-draw8x1_shift:
-draw8x1_shift_pattern_address:
-    LD DE,#0x0000
-
-draw8x1_shift_next:
-    LD C,(HL)
+; IY : パターンデータアドレス
+; IXL : Xオフセット
+; IXH : シフト回数
+;;
+    .macro draw8x1_shift_next ?rand
+    LD A,IXL
+    ADD (HL)
+    LD C,A
     INC HL
-    LD B,(HL)
+    LD A,#0x00
+    ADC (HL)
     INC HL
-    PUSH HL
-draw8x1_shift_offset:
-        LD HL,#0x0000
-        ADD HL,BC
-        LD C,L
+    LD D,A
 
+    ; パターンデータ取得
+    LD E,0(IY)
+    INC IYL
+
+    ; パターンデータをシフト
+    ; A : 左側
+    ; E : 右側
+    XOR A
+    LD B,IXH ; シフト回数
+draw8x1_shift_loop'rand:
+    SLA E
+    RLA
+    DJNZ draw8x1_shift_loop'rand
+
+    ; 描画
+    ; A : 左側のパターンデータ
+    ; E : 右側のパターンデータ
+    LD B,D
+    IN D,(C)
+    OR D
+    OUT (C),A
+    INC BC
+    IN A,(C)
+    OR E
+    OUT (C),A
+    .endm
+
+;;
+; シフト無しの8x8サイズのスプライト描画
+; HL : line address
+;;
+draw8x8_no_shift:
+    EX DE,HL
+draw8x1_pattern_address:
+    LD HL,#0x0000
+    LD IXL,#8
+draw8x1_next:
+        ; BC = (DE) + offset
         LD A,(DE)
-        INC E
-        LD L,A
-        XOR A
-draw8x1_shift_count:
-        LD B,#0x00
-draw8x1_shift_loop:
-        SLA L
-        RLA
-        DJNZ draw8x1_shift_loop
-        ;
-        ;LD C,L
-        LD B,H
+        INC DE
+draw8x1_offset:
+        ADD A,#0x00
+        LD C,A
+        LD A,(DE)   ; 7
+        ADC #0x00   ; 7
+        LD B,A      ; 4
+        INC DE      ; 6   24
 
-        IN H,(C)
-        OR H
-        OUT (C),A
-        INC BC
+        ; 描画
         IN A,(C)
-        OR L
+        OR (HL)
+        INC L
         OUT (C),A
-    POP HL
+    DEC IXL ; 8
+    JP NZ,draw8x1_next ; 10
     RET
 
+;;
+; 8x8描画
 ; HL : line address
-;  E : シフトしないかどうか
+;  B : シフトしないかどうか
+;;
 _draw8x8:
-    LD A,E
+    LD A,B
     OR A
-    JR Z,draw8x8_shift
-    CALL draw8x1_shift
-    CALL draw8x1_shift_next
-    CALL draw8x1_shift_next
-    CALL draw8x1_shift_next
-    CALL draw8x1_shift_next
-    CALL draw8x1_shift_next
-    CALL draw8x1_shift_next
-    JP draw8x1_shift_next
+    JR Z,draw8x8_no_shift
 draw8x8_shift:
-    CALL draw8x1
-    CALL draw8x1_next
-    CALL draw8x1_next
-    CALL draw8x1_next
-    CALL draw8x1_next
-    CALL draw8x1_next
-    CALL draw8x1_next
-    JP draw8x1_next
+draw8x1_shift_pattern_address:
+    LD IY,#0x0000
+draw8x1_shift_offset:
+draw8x1_shift_count:
+    LD IX,#0x0000
+    draw8x1_shift_next
+    draw8x1_shift_next
+    draw8x1_shift_next
+    draw8x1_shift_next
+    draw8x1_shift_next
+    draw8x1_shift_next
+    draw8x1_shift_next
+    draw8x1_shift_next
+    RET
 
 _renderSpriteMode1_size8x8:
     ; パターン
@@ -129,7 +197,7 @@ _renderSpriteMode1_size8x8:
         LD DE,(_SPRITE_PATTERN_GENERATOR_TABLE_ADDRESS)
         ADD HL,DE
         LD (draw8x1_pattern_address + 1),HL
-        LD (draw8x1_shift_pattern_address + 1),HL
+        LD (draw8x1_shift_pattern_address + 2),HL
     POP HL
     ; X
     PUSH HL
@@ -148,15 +216,13 @@ _renderSpriteMode1_size8x8:
 renderSpriteMode1_size8x8_SKIP1:
         ;LD E,A ; E : offset
         LD (draw8x1_offset + 1),A
-        LD (draw8x1_shift_offset + 1),A
+        LD (draw8x1_shift_offset + 2),A
 
         ; *eraseList++ = 0x1E; LD E,nn
         ; *eraseList++ = (x >> 3); or (x >> 3)+4
         LD HL,(_eraseList)
-        LD (HL),#0x1E;
-        INC HL
-        LD (HL),A;
-        INC HL
+        GENERATE_ERACE #0x1E
+        GENERATE_ERACE A
         LD (_eraseList),HL
 
         LD A,B
@@ -165,7 +231,7 @@ renderSpriteMode1_size8x8_SKIP1:
 
         LD A,#8
         SUB B
-        LD (draw8x1_shift_count + 1),A
+        LD (draw8x1_shift_count + 3),A
     POP HL
 
     ; HL : LINE_ADDRESS_TABLE + y
@@ -178,27 +244,21 @@ renderSpriteMode1_size8x8_SKIP1:
     ; *eraseList++ = 0x21; *((u16*)eraseList) = (u16)lineAdr; eraseList += 2;
     EX DE,HL
         LD HL,(_eraseList)
-        LD (HL),#0x21
-        INC HL
-        LD (HL),E
-        INC HL
-        LD (HL),D
-        INC HL
-        LD (HL),#0xCD
-        INC HL
+        GENERATE_ERACE_SKIP #0x21
+        GENERATE_ERACE E
+        GENERATE_ERACE D
+        GENERATE_ERACE_SKIP #0xCD
         ; *((u16*)eraseList) = (u16)erase16x8;
         LD A,B
         OR A
         JR Z,renderSpriteMode1_erase8x8
 renderSpriteMode1_erase16x8:
-        LD (HL),#_erase16x8
-        INC HL
+        GENERATE_ERACE #_erase16x8
         LD (HL),#_erase16x8 >> 8
         JR renderSpriteMode1_SKIP3
         ; 
 renderSpriteMode1_erase8x8:
-        LD (HL),#_erase8x8
-        INC HL
+        GENERATE_ERACE #_erase8x8
         LD (HL),#_erase8x8 >> 8
 renderSpriteMode1_SKIP3:
         INC HL
@@ -206,22 +266,23 @@ renderSpriteMode1_SKIP3:
     EX DE,HL
 
     ; HL : line address
-    ;  E : シフトしないかどうか
-    LD E,B
+    ;  B : シフトしないかどうか
     JP _draw8x8
 
 ;------------------------------------------------
 ; 16x16スプライト描画
 ;------------------------------------------------
 
+; HL : パターンアドレス
+; E : offset
 .macro draw16x1_next_mac_sp ?rand
     POP BC  ; 10
     LD A,C  ; 4
     ADD A,E ; 4  offset
     LD C,A  ; 4
-    JR NC,draw16x1_SKIP'rand
+    JR NC,draw16x1_SKIP'rand ; 7/12
     INC B   ; 4
-draw16x1_SKIP'rand:
+draw16x1_SKIP'rand: ; 34
 
     IN A,(C)
     OR (HL)
@@ -263,66 +324,41 @@ draw16x1_SKIP'rand:
 ; HL : line address
 ; DE : pattern address
 _draw16x16:
-;    PUSH HL
-;        PUSH IX
-        LD IX,#0x0000
-        ADD IX,SP
-        LD SP,HL
+    LD IX,#0x0000
+    ADD IX,SP
+    LD SP,HL
 
-        EX DE,HL
-        LD A,L
-        ADD #16
-        EXX
-            LD L,A
-        EXX
-        LD A,H
-        EXX
-            LD H,A
-            LD A,E ; draw16x1_offset
-        EXX
-;draw16x1_offset:
-;        LD E,#0x00
-        LD E,A
+    EX DE,HL
+    LD A,L
+    ADD #16
+    EXX
+        LD L,A
+    EXX
+    LD A,H
+    EXX
+        LD H,A
+        LD A,E ; draw16x1_offset
+    EXX
 
+    LD E,A ; offset
 draw16x1_next:
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp
-        draw16x1_next_mac_sp_last
-        LD SP,IX
-;        POP IX
-;    POP BC
-
-;    ; 消去リスト生成
-;    ; LD HL,#line address
-;    ; CALL _erase16x16
-;	LD HL,(_eraseList)
-;	LD (HL),#0x21
-;    INC HL
-;	LD (HL),C
-;    INC HL
-;	LD (HL),B
-;    INC HL
-;	LD (HL),#0xCD
-;    INC HL
-;	LD (HL),#_erase16x16
-;    INC HL
-;	LD (HL),#(_erase16x16 >> 8)
-;    INC HL
-;	LD (_eraseList),HL
-
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp
+    draw16x1_next_mac_sp_last
+    LD SP,IX
     RET
 
 
@@ -342,7 +378,8 @@ draw16x1_shift_LOOP'rand:
         ; H L A
         LD H,0(IX)
         LD L,16(IX)
-        INC IX
+        ;INC IX
+        INC IXL
         .rept shift_count
             SRL H
             RR L
@@ -375,7 +412,8 @@ draw16x1_shift_LOOP'rand:
         ; H L A
         LD H,0(IX)
         LD L,16(IX)
-        INC IX
+        ;INC IX
+        INC IXL
         .rept shift_count
             SRL H
             RR L
@@ -415,15 +453,15 @@ draw16x1_shift_LOOP'rand:
         ; A H L
         LD H,0(IX)
         LD L,16(IX)
-        INC IX
+        ;INC IX
+        INC IXL
         .rept shift_count
             SLA L
             RL H
             RLA
         .endm
-        LD D,A
         ; VRAMへ書き込み
-        IN A,(C)
+        IN D,(C)
         OR D
         OUT (C),A
         INC BC
@@ -448,15 +486,16 @@ draw16x1_shift_LOOP'rand:
         ; A H L
         LD H,0(IX)
         LD L,16(IX)
-        INC IX
+        ;INC IX ; 10
+        INC IXL ; 8
         .rept shift_count
             SLA L
             RL H
             RLA
         .endm
-        LD D,A
+
         ; VRAMへ書き込み
-        IN A,(C)
+        IN D,(C)
         OR D
         OUT (C),A
         INC BC
@@ -477,26 +516,23 @@ draw16x1_shift_LOOP'rand:
 ; HL : line address
 ; DE : pattern address
 .macro draw16x16_right_shift shift_count
-;    PUSH IX
-        PUSH DE
-        POP IX
-        EXX
-            LD HL,#0x0000
-            ADD HL,SP
+    PUSH DE
+    POP IX
+    EXX
+        LD HL,#0x0000
+        ADD HL,SP
 
-            LD A,E ; E : draw16x1_offset
-        EXX
-        LD E,A
+        LD A,E ; E : draw16x1_offset
+    EXX
+    LD E,A
 
+    LD SP,HL
+
+        draw16x1_shift_sub_mac shift_count
+
+;   EXX
         LD SP,HL
-
-            draw16x1_shift_sub_mac shift_count
-
-;        EXX
-            LD SP,HL
-        EXX
-;    POP IX
-
+    EXX
     RET
 .endm
 
@@ -591,7 +627,8 @@ draw16x1_shift_LOOP'rand:
         ; H L A
         LD H,0(IX)
         LD L,16(IX)
-        INC IX
+        ;INC IX
+        INC IXL
         .rept shift_count
             SRL H
             RR L
@@ -630,7 +667,8 @@ draw16x1_shift_LOOP'rand:
         ; H L A
         LD H,0(IX)
         LD L,16(IX)
-        INC IX
+        ;INC IX
+        INC IXL
         .rept shift_count
             SRL H
             RR L
@@ -676,15 +714,16 @@ draw16x1_shift_LOOP'rand:
         ; A H L
         LD H,0(IX)
         LD L,16(IX)
-        INC IX
+        ;INC IX
+        INC IXL
         .rept shift_count
             SLA L
             RL H
             RLA
         .endm
-        LD D,A
+
         ; VRAMへ書き込み
-        IN A,(C)
+        IN D,(C)
         OR D
         OUT (C),A
         INC C
@@ -715,15 +754,15 @@ draw16x1_shift_LOOP'rand:
         ; A H L
         LD H,0(IX)
         LD L,16(IX)
-        INC IX
+        ;INC IX
+        INC IXL
         .rept shift_count
             SLA L
             RL H
             RLA
         .endm
-        LD D,A
         ; VRAMへ書き込み
-        IN A,(C)
+        IN D,(C)
         OR D
         OUT (C),A
         INC C
@@ -857,34 +896,26 @@ setShiftCountAndOffset16x16_SKIP1:
     ; CALL _erase24x16 / CALL _erase16x16
     EX DE,HL
         LD HL,(_eraseList)
-        LD (HL),#0x1E
-        INC HL
+        GENERATE_ERACE #0x1E
         EXX
             LD A,E ; draw16x1_offset
         EXX
-        LD (HL),A
-        INC HL
+        GENERATE_ERACE A
 
-        LD (HL),#0x21
-        INC HL
-        LD (HL),E
-        INC HL
-        LD (HL),D
-        INC HL
-        LD (HL),#0xCD
-        INC HL
+        GENERATE_ERACE_SKIP #0x21
+        GENERATE_ERACE E
+        GENERATE_ERACE D
+        GENERATE_ERACE_SKIP #0xCD
         LD A,(BC) ; x
         AND #0x07
         JR Z,S0
         ; shift
-        LD (HL),#_erase24x16
-        INC HL
+        GENERATE_ERACE #_erase24x16
         LD (HL),#(_erase24x16 >> 8)
         JP EXIT
         ; 16x16
 S0:
-        LD (HL),#_erase16x16
-        INC HL
+        GENERATE_ERACE #_erase16x16
         LD (HL),#(_erase16x16 >> 8)
 EXIT:
         INC HL
@@ -971,37 +1002,29 @@ renderSpriteMode1_no_overflow_size16x16_SKIP1:
     ; CALL _erase24x16 / CALL _erase16x16
     EX DE,HL
         LD HL,(_eraseList)
-        LD (HL),#0x1E
-        INC HL
+        GENERATE_ERACE #0x1E
         EXX
             LD A,E ; draw16x1_offset
         EXX
-        LD (HL),A
-        INC HL
+        GENERATE_ERACE A
 
-        LD (HL),#0x21
-        INC HL
-        LD (HL),E
-        INC HL
-        LD (HL),D
-        INC HL
-        LD (HL),#0xCD
-        INC HL
+        GENERATE_ERACE_SKIP #0x21
+        GENERATE_ERACE E
+        GENERATE_ERACE D
+        GENERATE_ERACE_SKIP #0xCD
         LD A,(BC) ; x
         AND #0x07
         JR Z,S1
         ; shift
-        LD (HL),#erase24x16_no_overflow
-        INC HL
+        GENERATE_ERACE #erase24x16_no_overflow
         LD (HL),#(erase24x16_no_overflow >> 8)
         JP EXIT1
         ; 16x16
 S1:
-        LD (HL),#_erase16x16
-        INC HL
+        GENERATE_ERACE #_erase16x16
         LD (HL),#(_erase16x16 >> 8)
 EXIT1:
-        INC HL
+        INC HL ; 最後はちゃんと加算すること
         LD (_eraseList),HL
     EX DE,HL
 

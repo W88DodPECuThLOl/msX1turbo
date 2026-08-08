@@ -58,6 +58,7 @@ TEMP_WORK           .equ 0xC000 ; 一時ワーク用に使用するメモリの�
     JP _copy8KiBFromEmm0ToMem6000 ; 0x0315
     JP _copy8KiBFromEmm0ToMem8000 ; 0x0318
     JP _copy8KiBFromEmm0ToMemA000 ; 0x031B
+    JP _copy8KiBFromEmm0ToMem4000 ; 0x031E
 
 ;;
 ; テキストのアトリビュート(0x2000～0x27FF)をクリアする
@@ -682,6 +683,13 @@ copyEmm0ToMainMemory_LOOP:
     POP AF
     RET
 .endif
+
+_copy8KiBFromEmm0ToMem4000:
+    PUSH HL
+        LD HL,#0x4000
+        CALL _copy8KiBFromEmm0
+    POP HL
+    RET
 
 _copy8KiBFromEmm0ToMem6000:
     PUSH HL
