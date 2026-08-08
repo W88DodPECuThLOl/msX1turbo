@@ -336,15 +336,16 @@ IN_OUT_HOOK_IN_A_0xA9:
 
 ;;
 ; RST 0x28
+; 
+;   RST 0x28
+;   .DB 機能番号
 ;;
 IN_OUT_HOOK_PSG_AND_PPI:
-    LD (SAVE_HL),HL
+    EX (SP),HL
     LD (SAVE_A),A
-    POP HL
     LD A,(HL) ; 機能番号
     INC HL
-    PUSH HL
-    LD HL,(SAVE_HL)
+    EX (SP),HL
     ; PSG
     CP #0xA0
     JP Z,IN_OUT_HOOK_OUT_0xA0_A
@@ -364,5 +365,3 @@ IN_OUT_HOOK_PSG_EXIT:
 
 SAVE_A:
     .DB 0x00
-SAVE_HL:
-    .DW 0x00
