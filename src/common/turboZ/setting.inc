@@ -1,10 +1,12 @@
 ; 定義すると描画のフレームスキップが有効になる
 .define ENABLE_FRAME_SKIP /1/
 
+; 定義するとSCCが有効になる
+.define ENABLE_SCC /1/
+
 ; VRAMの開始アドレス
 .define VRAM_4000 /0x4000/
 ;.define VRAM_8000 /0x8000/
-
 
 ; ROMのアドレス
 .define ROM_ADDRESS /0x4000/

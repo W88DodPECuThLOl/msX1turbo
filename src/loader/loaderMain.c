@@ -31,6 +31,7 @@ typedef uint16_t u32;
 #include "msg.h"
 
 extern void copyProgram();
+extern void initSCC();
 
 #define ROM_ADDRESS 0x4000
 #define PATCH_ADDRESS 0xC000
@@ -125,7 +126,7 @@ internalPatch(u16 startAddress, u16 size)
             *(u16*)addr = 0x77C7; // RST #0x00 : LD 0(IX),A
         } else if(*(u16*)addr == 0x78ED) {
             // IN A,(C)
-            *(u16*)addr = 0x7EC7; // RST #0x00 : LD A,0(IX)
+            *(u16*)addr = 0x7EFF; // RST #0x38 : LD A,0(IX)
 #if 1 // 直接ポートを叩いている物の対処 VDP
         } else if(*(u16*)addr == 0x98D3) {
             // OUT (0x98),A
@@ -533,6 +534,8 @@ executeProgram(const char* filename) __naked
 u8
 main()
 {
+    initSCC();
+
     // ファイル選択、読み込み、パッチの適応など
     u8 driveNo = 0;
     const u8 sys = fileSelectReadAndPatch(&driveNo);

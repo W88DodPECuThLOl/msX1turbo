@@ -202,7 +202,7 @@ _INITIALIZE:
     MSX_BIOS 0x000C, _RDSLT
     MSX_BIOS 0x0020, _DCOMPR
     MSX_BIOS 0x0024, _ENASLT
-    MSX_BIOS 0x0038, INT              ; 割り込み
+;    MSX_BIOS 0x0038, INT              ; 割り込み
     MSX_BIOS_NOT_IMPL 0x003B, _INITIO
     MSX_BIOS_NOT_IMPL 0x003E, _INIFNK
     MSX_BIOS 0x0041, _DISSCR ; 画面表示を禁止します。
@@ -240,12 +240,13 @@ _INITIALIZE:
     MSX_BIOS 0x013E, _RDVDP
     MSX_BIOS 0x0141, _SNSMAT
     ; IO PATCH
-    MSX_BIOS 0x0000, _IN_OUT_HOOK
+    MSX_BIOS 0x0000, OUT_HOOK
     MSX_BIOS 0x0008, _BLOCK_IN_OUT_HOOK
     MSX_BIOS 0x0010, IN_OUT_HOOK_OUT_0x99_A ; CHRGTR (0010H/MAIN) ; BASICテキストから文字（またはトークン）を取り出します。
     MSX_BIOS 0x0018, IN_OUT_HOOK_IN_A_0x99  ; OUTDO (0018H/MAIN) 現在使っているデバイスに値を出力します。
     MSX_BIOS 0x0028, IN_OUT_HOOK_PSG_AND_PPI ; GETYPR (0028H/MAIN)
     MSX_BIOS 0x0030, IN_OUT_HOOK_OUT_0x98_A
+    MSX_BIOS 0x0038, IN_HOOK
 
     ; VDPレジスタ初期化
     LD HL,#VDP_INIT_DATA
@@ -279,12 +280,6 @@ VDP_INIT_DATA:
 INT:
     DI
     PUSH AF
-.ifdef BANK_MEMORY_VRAM
-        ; BANK切り替え中は割り込みを無視する
-        LD A,(0x02FF)
-        OR A
-        JP NZ,INT_EXIT
-.endif
         ; 垂直帰線割り込みフラグをセット
         LD A,#0x80
         LD (STATFL),A
@@ -309,6 +304,9 @@ INT:
             PUSH BC
             PUSH DE
             PUSH HL
+                ; キーボード読み込みリクエスト
+                CALL GET_GAME_KEY_REQUEST ; リクエストを出して
+
                 ; 描画
                 LD A,(RG1SAV) ; VDPレジスタ1の保存場所
                 BIT 6,A ; VDP表示かどうか
@@ -323,6 +321,9 @@ INT:
                 ; 垂直帰線割り込みフラグをセット
                 ;LD A,#0x80
                 ;LD (STATFL),A
+
+                ; キーボード受信
+                CALL GET_GAME_KEY_RESPONSE ; 後で受信する
             POP HL
             POP DE
             POP BC

@@ -4,6 +4,20 @@ CRTC_WIDTH40    .equ 0x0303
 CRTC_WIDTH80    .equ 0x0306
 WRITE_OUTPUT    .equ 0x0309
 x1_psgReset     .equ 0x030C
+readBankMemory0Byte .equ 0x030F
+writeBankMemory0Byte .equ 0x0312
+copy8KiBFromEmm0ToMem6000 .equ 0x0315
+copy8KiBFromEmm0ToMem8000 .equ 0x0318
+copy8KiBFromEmm0ToMemA000 .equ 0x031B
+copy8KiBFromEmm0ToMem4000 .equ 0x031E
+reserve1  .equ 0x0321
+reserve2  .equ 0x0324
+reserve3  .equ 0x0327
+reserve4  .equ 0x032A
+reserve5  .equ 0x032D
+reserve6  .equ 0x0330
+SUB_CPU_SEND    .equ 0x0333
+SUB_CPU_RECEIVE .equ 0x0336
 
 ; -----------------------------------
 ; msX1turbo
@@ -22,14 +36,15 @@ _RDVRM .equ 0xC11F
 VRAM_ACCESS_POINTER .equ 0xC12D
 _WRTVDP .equ 0xC131
 _WRTVRM .equ 0xC173
-_IN_OUT_HOOK .equ 0xC181
-IN_OUT_HOOK_OUT_0x98_A .equ 0xC1FD
-IN_OUT_HOOK_OUT_0x99_A .equ 0xC208
-IN_OUT_HOOK_IN_A_0x99 .equ 0xC238
-_BLOCK_IN_OUT_HOOK .equ 0xC241
+IN_HOOK .equ 0xC181
+OUT_HOOK .equ 0xC19A
+IN_OUT_HOOK_OUT_0x98_A .equ 0xC1FE
+IN_OUT_HOOK_OUT_0x99_A .equ 0xC209
+IN_OUT_HOOK_IN_A_0x99 .equ 0xC239
+_BLOCK_IN_OUT_HOOK .equ 0xC242
 
-_vdpInit .equ 0xC2FA
-_vdpRender .equ 0xC337
+_vdpInit .equ 0xC2FB
+_vdpRender .equ 0xC338
 .endif
 
 ; -----------------------------------
@@ -49,12 +64,13 @@ _RDVRM .equ 0xC1B7
 VRAM_ACCESS_POINTER .equ 0xC1D0
 _WRTVDP .equ 0xC1D4
 _WRTVRM .equ 0xC216
-_IN_OUT_HOOK .equ 0xC22F
-IN_OUT_HOOK_OUT_0x98_A .equ 0xC2BF
-IN_OUT_HOOK_OUT_0x99_A .equ 0xC2FF
-IN_OUT_HOOK_IN_A_0x99 .equ 0xC32F
-_BLOCK_IN_OUT_HOOK .equ 0xC338
+IN_HOOK .equ 0xC22F
+OUT_HOOK .equ 0xC25C
+IN_OUT_HOOK_OUT_0x98_A .equ 0xC2D2
+IN_OUT_HOOK_OUT_0x99_A .equ 0xC312
+IN_OUT_HOOK_IN_A_0x99 .equ 0xC342
+_BLOCK_IN_OUT_HOOK .equ 0xC34B
 
-_vdpInit .equ 0xC3FF
-_vdpRender .equ 0xC448
+_vdpInit .equ 0xC412
+_vdpRender .equ 0xC45B
 .endif

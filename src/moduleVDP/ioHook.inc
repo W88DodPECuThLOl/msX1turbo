@@ -1,8 +1,14 @@
 ;;
-; @brief VDP書き込みのIN/OUT命令のフック処理
+; @brief VDP書き込みのOUT命令のフック処理
 ; 「RST 0x00」+1バイトの「機能番号」で呼び出す。
 ;;
-    .globl _IN_OUT_HOOK
+    .globl OUT_HOOK
+
+;;
+; @brief VDP書き込みのIN命令のフック処理
+; 「RST 0x38」+1バイトの「機能番号」で呼び出す。
+;;
+    .globl IN_HOOK
 
 ;;
 ; @brief OUT (0x98),A命令のフック処理

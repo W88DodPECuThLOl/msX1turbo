@@ -331,7 +331,20 @@ PPI_REGISTER_NO:
 ;;
 IN_OUT_HOOK_IN_A_0xA9:
     ;LD A,(SAVE_A)
-    LD A,#0xFF
+    LD A,(PPI_REGISTER_NO)
+    OR A
+    RET NZ
+    ; 0行
+    PUSH HL
+        ; 「1」キー押下チェック
+        LD A,(GAME_KEY_STATE+2)
+        LD L,A
+        LD A,#0xFF
+        BIT 6,L
+        JR Z,SKIP_KEY1
+        XOR #0x02
+SKIP_KEY1:
+    POP HL
     RET
 
 ;;
@@ -347,21 +360,123 @@ IN_OUT_HOOK_PSG_AND_PPI:
     INC HL
     EX (SP),HL
     ; PSG
-    CP #0xA0
+    SUB #0xA0 ;CP #0xA0
     JP Z,IN_OUT_HOOK_OUT_0xA0_A
-    CP #0xA1
+    DEC A ;CP #0xA1
     JP Z,IN_OUT_HOOK_OUT_0xA1_A
-    CP #0xA2
+    DEC A ;CP #0xA2
     JP Z,IN_OUT_HOOK_IN_A_0xA2
     ; PPI
-    CP #0xA9
+    SUB #0x07 ;CP #0xA9
     JP Z,IN_OUT_HOOK_IN_A_0xA9
-    CP #0xAA
+    DEC A ;CP #0xAA
     JP Z,IN_OUT_HOOK_OUT_0xAA_A
     ;
 IN_OUT_HOOK_PSG_EXIT:
-    LD A,(SAVE_A)
-    RET
-
+    .DB 0x3E
 SAVE_A:
     .DB 0x00
+    RET
+
+;;
+; @brief ゲームキーを取得する
+;
+; @note 変更レジスタ AF,BC,HL
+;;
+GET_GAME_KEY_REQUEST:
+    LD A,#0xE3 ; ゲームキー読み取り
+    JP 0x0333 ; SUB_CPU_SEND
+GET_GAME_KEY_RESPONSE:
+    ; 3バイトゲームキーの情報を読み込み
+    CALL 0x0336 ; SUB_CPU_RECEIVE
+    LD HL,#GAME_KEY_STATE
+    LD (HL),A
+    INC HL
+    CALL 0x0336 ; SUB_CPU_RECEIVE
+    LD (HL),A
+    INC HL
+    CALL 0x0336 ; SUB_CPU_RECEIVE
+    LD (HL),A
+    RET
+GAME_KEY_STATE:
+    ; QWEADZXC
+    .DB 0x00
+    ; 74182963   全部テンキー側
+    .DB 0x00
+    ; ESC,1,-,+,*,TAB,SPACE,RET    「-,+,*」はテンキー側
+    .DB 0x00
+;; 
+;; KEY_UPDATE:
+;;     LD HL,#0xFFFF
+;;     ; RETURN
+;;     LD A,(GAME_KEY_STATE+2)
+;;     BIT 0,A
+;;     JR Z,GAME_KEY_STATE_SKIP0
+;;     RES 7,L
+;; GAME_KEY_STATE_SKIP0:
+;;     ; SPACE
+;;     BIT 1,A
+;;     JR Z,GAME_KEY_STATE_SKIP1
+;;     RES 0,H
+;; GAME_KEY_STATE_SKIP1:
+;;     ; TAB
+;;     BIT 2,A
+;;     JR Z,GAME_KEY_STATE_SKIP2
+;;     RES 3,L
+;; GAME_KEY_STATE_SKIP2:
+;;     LD (NEWKEY+7),HL
+;; 
+;;     LD L,#0xFF
+;;     ; 1
+;;     BIT 6,A
+;;     JR Z,GAME_KEY_STATE_SKIP6
+;;     RES 1,L
+;; GAME_KEY_STATE_SKIP6:
+;;     LD A,L
+;;     LD (NEWKEY+0),A
+;; 
+;;     LD HL,#0xFFFF
+;;     ; 3
+;;     LD A,(GAME_KEY_STATE+1)
+;;     BIT 0,A
+;;     JR Z,GAME_KEY_STATE_SKIP9_6
+;;     RES 6,L
+;; GAME_KEY_STATE_SKIP9_6:
+;;     ; 6
+;;     BIT 1,A
+;;     JR Z,GAME_KEY_STATE_SKIP10_1
+;;     RES 1,H
+;; GAME_KEY_STATE_SKIP10_1:
+;;     ; 9
+;;     BIT 2,A
+;;     JR Z,GAME_KEY_STATE_SKIP10_4
+;;     RES 4,H
+;; GAME_KEY_STATE_SKIP10_4:
+;;     ; 2
+;;     BIT 3,A
+;;     JR Z,GAME_KEY_STATE_SKIP9_5
+;;     RES 5,L
+;; GAME_KEY_STATE_SKIP9_5:
+;;     ; 8
+;;     BIT 4,A
+;;     JR Z,GAME_KEY_STATE_SKIP10_3
+;;     RES 3,H
+;; GAME_KEY_STATE_SKIP10_3:
+;;     ; 1
+;;     BIT 5,A
+;;     JR Z,GAME_KEY_STATE_SKIP9_4
+;;     RES 4,L
+;; GAME_KEY_STATE_SKIP9_4:
+;;     ; 4
+;;     BIT 6,A
+;;     JR Z,GAME_KEY_STATE_SKIP9_7
+;;     RES 7,L
+;; GAME_KEY_STATE_SKIP9_7:
+;;     ; 7
+;;     BIT 7,A
+;;     JR Z,GAME_KEY_STATE_SKIP10_2
+;;     RES 2,H
+;; GAME_KEY_STATE_SKIP10_2:
+;; 
+;;     LD (NEWKEY+9),HL
+;;     RET

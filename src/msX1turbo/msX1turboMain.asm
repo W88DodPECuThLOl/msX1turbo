@@ -9,6 +9,7 @@
 .include /msX1turboMain.inc/
 .include /msx1Bios.inc/
 .include /msx1BiosPsg.inc/
+.include /x1Scc.inc/
 .include /msx1BiosVdp.inc/
 
 _main:
@@ -31,6 +32,9 @@ main_LOOP:
     CALL x1_psgReset
     CALL _INITIALIZE
     CALL _vdpInit
+.ifdef ENABLE_SCC
+    CALL initSCC
+.endif
     CALL _CTC_SETUP
     ; 実行
     LD BC,#0x0101

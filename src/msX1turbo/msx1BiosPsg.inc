@@ -67,3 +67,7 @@
 ; PSGとPPI用のIOフック
 ;;
     .globl IN_OUT_HOOK_PSG_AND_PPI
+
+
+    .globl GET_GAME_KEY_REQUEST
+    .globl GET_GAME_KEY_RESPONSE

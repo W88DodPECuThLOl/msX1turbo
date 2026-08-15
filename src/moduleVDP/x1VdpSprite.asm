@@ -7,6 +7,9 @@
 .include /msx1BiosDef.inc/
 .include /x1VdpSprite.inc/
 
+; 軽量なスプライト
+; .define LIGHT_SPRITE /1/
+
     .globl _LINE_ADDRESS_TABLE
 
     .globl _SPRITE_PATTERN_GENERATOR_TABLE_ADDRESS
@@ -120,6 +123,15 @@ draw8x1_shift_loop'rand:
     ; A : 左側のパターンデータ
     ; E : 右側のパターンデータ
     LD B,D
+.ifdef LIGHT_SPRITE
+    ;IN D,(C)
+    ;OR D
+    OUT (C),A
+    INC BC
+    ;IN A,(C)
+    ;OR E
+    OUT (C),E
+.else
     IN D,(C)
     OR D
     OUT (C),A
@@ -127,6 +139,7 @@ draw8x1_shift_loop'rand:
     IN A,(C)
     OR E
     OUT (C),A
+.endif
     .endm
 
 ;;
@@ -151,10 +164,18 @@ draw8x1_offset:
         INC DE      ; 6   24
 
         ; 描画
+.ifdef LIGHT_SPRITE
+        INC B
+        OUTI
+        ;LD A,(HL)
+        ;INC L
+        ;OUT (C),A
+.else
         IN A,(C)
         OR (HL)
         INC L
         OUT (C),A
+.endif
     DEC IXL ; 8
     JP NZ,draw8x1_next ; 10
     RET
@@ -284,6 +305,18 @@ renderSpriteMode1_SKIP3:
     INC B   ; 4
 draw16x1_SKIP'rand: ; 34
 
+.ifdef LIGHT_SPRITE
+    LD A,(HL)
+    INC L
+    OUT (C),A
+    INC BC
+
+    EXX
+        LD A,(HL)
+        INC L
+    EXX
+    OUT (C),A
+.else
     IN A,(C)
     OR (HL)
     INC L
@@ -296,6 +329,7 @@ draw16x1_SKIP'rand: ; 34
         INC L
     EXX
     OUT (C),A
+.endif
 .endm
 
 .macro draw16x1_next_mac_sp_last ?rand
@@ -307,6 +341,16 @@ draw16x1_SKIP'rand: ; 34
     INC B
 draw16x1_SKIP'rand:
 
+.ifdef LIGHT_SPRITE
+    LD A,(HL)
+    OUT (C),A
+    INC BC
+
+    EXX
+        LD A,(HL)
+    EXX
+    OUT (C),A
+.else
     IN A,(C)
     OR (HL)
     OUT (C),A
@@ -317,6 +361,7 @@ draw16x1_SKIP'rand:
         OR (HL)
     EXX
     OUT (C),A
+.endif
 .endm
 
 ; 16x16描画
@@ -385,8 +430,15 @@ draw16x1_shift_LOOP'rand:
             RR L
             RRA
         .endm
-        LD D,A
         ; VRAMへ書き込み
+.ifdef LIGHT_SPRITE
+        OUT (C),H
+        INC BC
+        OUT (C),L
+        INC BC
+        OUT (C),A
+.else
+        LD D,A
         IN A,(C)
         OR H
         OUT (C),A
@@ -398,7 +450,7 @@ draw16x1_shift_LOOP'rand:
         IN A,(C)
         OR D
         OUT (C),A
-
+.endif
         ; -----
 
         POP HL
@@ -419,6 +471,14 @@ draw16x1_shift_LOOP'rand:
             RR L
             RRA
         .endm
+.ifdef LIGHT_SPRITE
+        ; VRAMへ書き込み
+        OUT (C),H
+        INC BC
+        OUT (C),L
+        INC BC
+        OUT (C),A
+.else
         LD D,A
         ; VRAMへ書き込み
         IN A,(C)
@@ -432,6 +492,7 @@ draw16x1_shift_LOOP'rand:
         IN A,(C)
         OR D
         OUT (C),A
+.endif
     EXX
     DJNZ draw16x1_shift_LOOP'rand
 ;    EXX
@@ -460,6 +521,14 @@ draw16x1_shift_LOOP'rand:
             RL H
             RLA
         .endm
+.ifdef LIGHT_SPRITE
+        ; VRAMへ書き込み
+        OUT (C),A
+        INC BC
+        OUT (C),H
+        INC BC
+        OUT (C),L
+.else
         ; VRAMへ書き込み
         IN D,(C)
         OR D
@@ -472,6 +541,7 @@ draw16x1_shift_LOOP'rand:
         IN A,(C)
         OR L
         OUT (C),A
+.endif
 
         ; ------
 
@@ -494,6 +564,14 @@ draw16x1_shift_LOOP'rand:
             RLA
         .endm
 
+.ifdef LIGHT_SPRITE
+        ; VRAMへ書き込み
+        OUT (C),A
+        INC BC
+        OUT (C),H
+        INC BC
+        OUT (C),L
+.else
         ; VRAMへ書き込み
         IN D,(C)
         OR D
@@ -506,6 +584,7 @@ draw16x1_shift_LOOP'rand:
         IN A,(C)
         OR L
         OUT (C),A
+.endif
     EXX
     DJNZ draw16x1_shift_LOOP'rand
 ;    EXX
@@ -634,6 +713,14 @@ draw16x1_shift_LOOP'rand:
             RR L
             RRA
         .endm
+.ifdef LIGHT_SPRITE
+        ; VRAMへ書き込み
+        OUT (C),H
+        INC C
+        OUT (C),L
+        INC C
+        OUT (C),A
+.else
         LD D,A
         ; VRAMへ書き込み
         IN A,(C)
@@ -647,7 +734,7 @@ draw16x1_shift_LOOP'rand:
         IN A,(C)
         OR D
         OUT (C),A
-
+.endif
         ; -----
 
 ;        POP HL
@@ -674,6 +761,14 @@ draw16x1_shift_LOOP'rand:
             RR L
             RRA
         .endm
+.ifdef LIGHT_SPRITE
+        ; VRAMへ書き込み
+        OUT (C),H
+        INC C
+        OUT (C),L
+        INC C
+        OUT (C),A
+.else
         LD D,A
         ; VRAMへ書き込み
         IN A,(C)
@@ -687,6 +782,7 @@ draw16x1_shift_LOOP'rand:
         IN A,(C)
         OR D
         OUT (C),A
+.endif
     EXX
     DJNZ draw16x1_shift_LOOP'rand
 ;    EXX
@@ -722,6 +818,14 @@ draw16x1_shift_LOOP'rand:
             RLA
         .endm
 
+.ifdef LIGHT_SPRITE
+        ; VRAMへ書き込み
+        OUT (C),A
+        INC C
+        OUT (C),H
+        INC C
+        OUT (C),L
+.else
         ; VRAMへ書き込み
         IN D,(C)
         OR D
@@ -734,6 +838,7 @@ draw16x1_shift_LOOP'rand:
         IN A,(C)
         OR L
         OUT (C),A
+.endif
 
         ; ------
 
@@ -761,6 +866,14 @@ draw16x1_shift_LOOP'rand:
             RL H
             RLA
         .endm
+.ifdef LIGHT_SPRITE
+        ; VRAMへ書き込み
+        OUT (C),A
+        INC C
+        OUT (C),H
+        INC C
+        OUT (C),L
+.else
         ; VRAMへ書き込み
         IN D,(C)
         OR D
@@ -773,6 +886,7 @@ draw16x1_shift_LOOP'rand:
         IN A,(C)
         OR L
         OUT (C),A
+.endif
     EXX
     DJNZ draw16x1_shift_LOOP'rand
 ;    EXX

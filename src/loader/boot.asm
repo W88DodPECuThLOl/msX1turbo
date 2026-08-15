@@ -59,6 +59,18 @@ TEMP_WORK           .equ 0xC000 ; 一時ワーク用に使用するメモリの�
     JP _copy8KiBFromEmm0ToMem8000 ; 0x0318
     JP _copy8KiBFromEmm0ToMemA000 ; 0x031B
     JP _copy8KiBFromEmm0ToMem4000 ; 0x031E
+    ;
+    .DB 0xC9,0xC9,0xC9  ; 0x0321
+    .DB 0xC9,0xC9,0xC9
+    .DB 0xC9,0xC9,0xC9
+    .DB 0xC9,0xC9,0xC9
+    .DB 0xC9,0xC9,0xC9
+    .DB 0xC9,0xC9,0xC9
+    ;
+_SUB_CPU_SEND::
+    JP SUB_CPU_SEND
+_SUB_CPU_RECEIVE::
+    JP SUB_CPU_RECEIVE
 
 ;;
 ; テキストのアトリビュート(0x2000～0x27FF)をクリアする
@@ -549,9 +561,9 @@ dmaCommand_EMM0toMem:
     .DB 0xC3
     .DB 0xC3
     .DB 0xC3
-    .DB 0xC3
-    .DB 0xC3
-    .DB 0xC3
+;    .DB 0xC3
+;    .DB 0xC3
+;    .DB 0xC3
 
     .DB 0x7D        ; 01111101　WR0
                     ;       転送 A=>B
@@ -603,9 +615,6 @@ _copy8KiBFromEmm0:
         INC C
         OUT (C),E ; HIGH
         INC C
-    LD A,#1
-    LD (0x02FF),A
-
         ; 8KiBコピーする
         LD DE,#0x800
 copyEmm0ToMainMemory_LOOP:
@@ -625,9 +634,6 @@ copyEmm0ToMainMemory_LOOP:
         LD A,E
         OR D
         JP NZ,copyEmm0ToMainMemory_LOOP
-
-    LD (0x02FF),A
-
     POP DE
     POP BC
     POP AF
@@ -651,9 +657,6 @@ copyEmm0ToMainMemory_LOOP:
         INC C
         OUT (C),E ; HIGH
 
-        LD A,#1
-        LD (0x02FF),A
-
 ;        LD BC,#0x1FA0+3
 ;        IN D,(C) ; Ch3の値を保存
 ;        LD A,#0x03
@@ -664,7 +667,7 @@ copyEmm0ToMainMemory_LOOP:
         LD HL,#dmaCommand_EMM0toMem
         LD BC,#0x1F80 + 0x0100
         OUTI
-        .rept 12+6
+        .rept 12+3
         INC B
         OUTI
         .endm
@@ -674,9 +677,6 @@ copyEmm0ToMainMemory_LOOP:
 ;        LD A,#0xD7
 ;        OUT (C),A
 ;        OUT (C),D
-
-        XOR A
-        LD (0x02FF),A
 
     POP DE
     POP BC
