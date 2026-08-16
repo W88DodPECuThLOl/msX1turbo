@@ -27,32 +27,19 @@ JOY_STICK1_STATS:
 JOY_STICK_UPDATA:
     PUSH AF
     PUSH BC
-        ;LD A, I
-        ;PUSH AF
-;            LD BC,#0x1C07
-;            ;DI
-;            OUT (C),C
-;            DEC B
-;            IN A,(C)
-;            AND #0x3F
-;            OUT (C),A
-            ; ジョイスティック1読み込み
-            LD BC,#0x1C0E
-            OUT (C),C
-            DEC B
-            IN A,(C)
-            LD (JOY_STICK0_STATS),A
-            ; ジョイスティック2読み込み
-            INC B
-            INC C
-            OUT (C),C
-            DEC B
-            IN A,(C)
-            LD (JOY_STICK1_STATS),A
-        ;POP AF
-        ;JP PO,JOY_STICK_UPDATA_SKIP1
-        ;EI
-;JOY_STICK_UPDATA_SKIP1:
+        ; ジョイスティック1読み込み
+        LD BC,#0x1C0E
+        OUT (C),C
+        DEC B
+        IN A,(C)
+        LD (JOY_STICK0_STATS),A
+        ; ジョイスティック2読み込み
+        INC B
+        INC C
+        OUT (C),C
+        DEC B
+        IN A,(C)
+        LD (JOY_STICK1_STATS),A
     POP BC
     POP AF
     RET
@@ -385,17 +372,18 @@ SAVE_A:
 ;;
 GET_GAME_KEY_REQUEST:
     LD A,#0xE3 ; ゲームキー読み取り
-    JP 0x0333 ; SUB_CPU_SEND
+    JP SUB_CPU_SEND
+
 GET_GAME_KEY_RESPONSE:
     ; 3バイトゲームキーの情報を読み込み
-    CALL 0x0336 ; SUB_CPU_RECEIVE
+    CALL SUB_CPU_RECEIVE
     LD HL,#GAME_KEY_STATE
     LD (HL),A
     INC HL
-    CALL 0x0336 ; SUB_CPU_RECEIVE
+    CALL SUB_CPU_RECEIVE
     LD (HL),A
     INC HL
-    CALL 0x0336 ; SUB_CPU_RECEIVE
+    CALL SUB_CPU_RECEIVE
     LD (HL),A
     RET
 GAME_KEY_STATE:

@@ -319,7 +319,7 @@ CTC_RESET_SUB:
 SUB_CPU_RESET:
     LD A,#0xE4 ; キー入力割り込みベクタセットコマンド
     CALL SUB_CPU_SEND
-    XOR A ; キー入力割り込みベクタ 0で０割り込み無効
+    XOR A ; キー入力割り込みベクタ 0で割り込み無効
     ;JP SUB_CPU_SEND
 
 ;;
@@ -342,14 +342,13 @@ SUB_CPU_SEND:
 ; サブCPUから1バイトデータを受信する
 ;
 ; @return   A   受信データ
-; @note 破壊レジスタ BC
 ;;
 SUB_CPU_RECEIVE:
     ; サブCPUからデータを受信できるようになるまで待つ
     CALL SUB_CPU_WAIT_READY_FOR_RECEIVE
     ; データを受信する
-    LD BC,#0x1900
-    IN A,(C)
+    LD A,#0x19
+    IN A,(0x00) ; 0x1900
     RET
 
 ;;

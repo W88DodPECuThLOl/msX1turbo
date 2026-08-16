@@ -43,6 +43,7 @@ _CLRSPR:
         LDIR
 .ifdef BANK_MEMORY_VRAM
     ; メインメモリ
+    LD BC,#0x0B00
     LD A,#0x10
     OUT (C),A
     EI
@@ -89,6 +90,7 @@ CLRSPR_LOOP:
 
 .ifdef BANK_MEMORY_VRAM
     ; メインメモリ
+    LD BC,#0x0B00
     LD A,#0x10
     OUT (C),A
 .endif

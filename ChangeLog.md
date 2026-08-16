@@ -1,3 +1,12 @@
+# Ver. 0.0.8
+
+## BIOS
+* CLRSPRが上手く動作しない場合があったのを修正
+
+## その他
+* 細かい修正など
+  * 「LD BC,nnmm:IN A,(C)」⇒「LD A,nn;IN A,(mm)」
+
 # Ver. 0.0.7
 
 * SCC音源に対応

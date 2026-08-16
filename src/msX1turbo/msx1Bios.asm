@@ -28,24 +28,30 @@ SYSTEM_STACK    .equ    0x4000 ; システム用のスタックアドレス
 SP_SAVE:
     .DW 0x0000
 
+;;
 ; サブCPUをリセットする
+;
+; @note 破壊レジスタ AF,BC
+;;
 SUB_CPU_RESET:
     CALL SUB_CPU_WAIT_READY_WRITE
     LD BC,#0x1900
-    LD A,#0xE4
+    LD A,#0xE4 ; キー入力割り込みベクタセットコマンド
     OUT (C),A
     CALL SUB_CPU_WAIT_READY_WRITE
-    LD BC,#0x1900
-    OUT (C),C
+    OUT (C),C ; BC:0x1900
     RET
 
-;書き込み可能になるまで待つ
+;;
+; サブCPUへデータを送信できるようになるまで待つ
+;
+; @note 破壊レジスタ AF
+;;
 SUB_CPU_WAIT_READY_WRITE:
-    LD BC,#0x1A01
-SUB_CPU_WAIT_READY_WRITE_LOOP:
-    IN A,(C)
-    BIT 6,A
-    JR NZ,SUB_CPU_WAIT_READY_WRITE_LOOP
+    LD A,#0x1A
+    IN A,(0x01) ; 0x1A01
+    AND #0x40
+    JR NZ,SUB_CPU_WAIT_READY_WRITE
     RET
 
 ;;
@@ -56,10 +62,9 @@ _CTC_SETUP:
 	LD A,I
 	LD H,A
 	LD L,#0x70+6
-	LD BC,#INT
-	LD (HL),C
+	LD (HL),#INT
 	INC L
-	LD (HL),B
+	LD (HL),#INT >> 8
 
 	; CTCの設定
 	LD BC,#0x1FA0
