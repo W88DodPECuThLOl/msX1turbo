@@ -445,6 +445,13 @@ HOT_START:
     ; テキストがグラフィックよりも上になるようにプライオリティを設定
     CALL GRAPHICS_PRIORITY_INIT
     ; グラフィックをクリア
+    LD BC,#0x1FD0
+    LD A,#0x12
+    OUT (C),A
+    CALL GRAM_CLEAR
+    LD BC,#0x1FD0
+    LD A,#0x02
+    OUT (C),A
     CALL GRAM_CLEAR
 ;
     .DB 0xCD

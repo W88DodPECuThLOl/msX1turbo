@@ -27,5 +27,6 @@ VRAM .equ 0x4000    ; VRAMアドレス
 
 .ifdef BANK_MEMORY_VRAM
     ; バンクメモリ0
-    _SPRITE_ERACE_LIST .equ 0x0000
+    _SPRITE_ERACE_LIST0 .equ 0x0000
+    _SPRITE_ERACE_LIST1 .equ 0x0200
 .endif

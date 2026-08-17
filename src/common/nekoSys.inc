@@ -44,7 +44,7 @@ IN_OUT_HOOK_IN_A_0x99 .equ 0xC239
 _BLOCK_IN_OUT_HOOK .equ 0xC242
 
 _vdpInit .equ 0xC2FB
-_vdpRender .equ 0xC338
+_vdpRender .equ 0xC33F
 .endif
 
 ; -----------------------------------
@@ -72,5 +72,5 @@ IN_OUT_HOOK_IN_A_0x99 .equ 0xC356
 _BLOCK_IN_OUT_HOOK .equ 0xC35F
 
 _vdpInit .equ 0xC426
-_vdpRender .equ 0xC46F
+_vdpRender .equ 0xC476
 .endif

@@ -27,7 +27,8 @@
     .globl _LINE_ADDRESS_TABLE
 .ifdef BANK_MEMORY_VRAM
 .else
-    .globl _SPRITE_ERACE_LIST
+    .globl _SPRITE_ERACE_LIST0
+    .globl _SPRITE_ERACE_LIST1
 .endif
 
 _vdpInit:
@@ -38,18 +39,16 @@ _vdpInit:
     OUT (C),A
     ; グラフィックパレット
     LD BC,#0x1000
-    LD A,#0xAA
-    OUT (C),A
+    LD DE,#0xCCAA
+    OUT (C),E ; 0x1000
     INC B
-    LD A,#0xCC
-    OUT (C),A
+    OUT (C),D ; 0x1100
     INC B
-    LD A,#0xF0
-    OUT (C),A
+    LD DE,#0xFEF0
+    OUT (C),E ; 0x1200
     ; プライオリティ
     INC B
-    LD A,#0xFE
-    OUT (C),A
+    OUT (C),D ; 0x1300
 
     ; テキスト初期化
 .ifdef USE_DMA
@@ -77,7 +76,9 @@ vdpInit_LOOP2:
     CALL _pcgInit
 
     ; 消去リスト初期化
-    LD HL,#_SPRITE_ERACE_LIST
+    LD HL,#_SPRITE_ERACE_LIST0
+    CALL initEraceList
+    LD HL,#_SPRITE_ERACE_LIST1
     CALL initEraceList
 .ifdef BANK_MEMORY_VRAM
     ; バンクメモリ0へ切り替え
@@ -87,7 +88,8 @@ vdpInit_LOOP2:
     ;eraseList = (u8*)SPRITE_ERACE_LIST;
     ;*eraseList = 0xC9; // RET
     LD A,#0xC9
-    LD (_SPRITE_ERACE_LIST),A
+    LD (_SPRITE_ERACE_LIST0),A
+    LD (_SPRITE_ERACE_LIST1),A
 .ifdef BANK_MEMORY_VRAM
     ; メインメモリへ切り替え
     LD BC,#0x0B00
@@ -148,10 +150,40 @@ vdpRender_SKIP0:
 
     ; テキスト描画
     CALL _renderGraphic
+
+    LD HL,#frameCouter
+    RRC (HL) ; 15
+    JP C,render1
+
+render0:
+    ; 200ラインモード、2本ラスタ/ドット、バンク1表示、バンク0アクセス
+    ; PCG高速アクセス
+    LD BC,#0x1FD0
+    LD A,#0x2A
+    OUT (C),A
+
     ; スプライト消去
-    CALL eraseSprite
+    CALL eraseSprite0
     ; スプライト描画
-    LD HL,#_SPRITE_ERACE_LIST
+    LD HL,#_SPRITE_ERACE_LIST0
+    LD (_eraseList),HL
+    CALL renderSprite
+    ; *eraseList = 0xC9; // RET
+    LD HL,(_eraseList)
+    LD (HL),#0xC9
+    RET
+
+render1:
+    ; 200ラインモード、2本ラスタ/ドット、バンク0表示、バンク1アクセス
+    ; PCG高速アクセス
+    LD BC,#0x1FD0
+    LD A,#0x32
+    OUT (C),A
+
+    ; スプライト消去
+    CALL eraseSprite1
+    ; スプライト描画
+    LD HL,#_SPRITE_ERACE_LIST1
     LD (_eraseList),HL
     CALL renderSprite
     ; *eraseList = 0xC9; // RET
@@ -168,6 +200,9 @@ frameSkip:
     .DB 0x49
 .endif
 .endif
+
+frameCouter:
+    .DB 0x55
 
 ;    // グラフィックのY軸のアドレスの事前計算
 ;    for(int y = 0; y < 256 + 16; ++y) {
@@ -459,7 +494,11 @@ PcgCharNo:
     .DB 0
 
 .ifndef BANK_MEMORY_VRAM
-_SPRITE_ERACE_LIST:
+_SPRITE_ERACE_LIST0:
+    .rept 32*8+16
+    .DB 0xC3
+    .endm
+_SPRITE_ERACE_LIST1:
     .rept 32*8+16
     .DB 0xC3
     .endm

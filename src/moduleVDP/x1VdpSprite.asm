@@ -19,7 +19,8 @@
 
 .ifdef BANK_MEMORY_VRAM
 .else
-    .globl _SPRITE_ERACE_LIST
+    .globl _SPRITE_ERACE_LIST0
+    .globl _SPRITE_ERACE_LIST1
 .endif
 
 ;;
@@ -1374,13 +1375,21 @@ erase24x16_no_overflow:
 ;;
 ; @brief スプライト消去
 ;;
-eraseSprite:
+eraseSprite0:
     LD D,#0x00
     EXX
     LD HL,#0xFFFE
     ADD HL,SP
     EXX
-    JP _SPRITE_ERACE_LIST
+    JP _SPRITE_ERACE_LIST0
+
+eraseSprite1:
+    LD D,#0x00
+    EXX
+    LD HL,#0xFFFE
+    ADD HL,SP
+    EXX
+    JP _SPRITE_ERACE_LIST1
 
 ;;
 ;;
