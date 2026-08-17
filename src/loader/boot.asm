@@ -109,11 +109,12 @@ TEXT_VRAM_CLEAR:
 ; @note 破壊レジスタ AF,BC
 ;;
 CONCURRENT_ACCESS_MODE:
+    ; ポートCの5ビットを立ち下げで
+    ; 同時アクセスモードになる
     LD BC,#0x1A03
     LD A,#0x0B
-    OUT (C),A   ; PC6セット
-    DEC A
-    OUT (C),A   ; PC6リセット
+    OUT (C),A   ; ポートC 5ビットを持ち上げて
+    OUT (C),B   ; ポートC 5ビットを落とす
     RET
 
 ;;
@@ -392,7 +393,7 @@ x1_psgReset_Loop:
     jr nz, x1_psgReset_Loop
     ret
 PSG_RESET_TABLE:
-    .DB 0x55,0,0,0,0,0,0,0x3F,0,0,0,0x0B,0,0 ; 0～13のPCGのレジスタに書き込む値
+    .DB 0x55,0,0,0,0,0,0,0x38,0,0,0,0x0B,0,0 ; 0～13のPCGのレジスタに書き込む値
 
 _x1_dmaReset:
     ld bc, #0x1f80

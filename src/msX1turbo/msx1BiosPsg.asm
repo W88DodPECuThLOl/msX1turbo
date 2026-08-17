@@ -7,10 +7,6 @@
 .include /nekoSys.inc/
 .include /msx1BiosPsg.inc/
 
-; PSGレジスタ7の値
-PSG_REG7:
-    .DB 0x00
-
 ; PSGレジスタ15の値
 PSG_REG15:
     .DB 0xFF
@@ -25,23 +21,22 @@ JOY_STICK1_STATS:
 ; @brief ジョイスティック読み込み
 ;;
 JOY_STICK_UPDATA:
-    PUSH AF
     PUSH BC
+    PUSH HL
         ; ジョイスティック1読み込み
         LD BC,#0x1C0E
         OUT (C),C
         DEC B
-        IN A,(C)
-        LD (JOY_STICK0_STATS),A
+        IN L,(C)
         ; ジョイスティック2読み込み
         INC B
         INC C
         OUT (C),C
         DEC B
-        IN A,(C)
-        LD (JOY_STICK1_STATS),A
+        IN H,(C)
+        LD (JOY_STICK0_STATS),HL
+    POP HL
     POP BC
-    POP AF
     RET
 
 ;;
@@ -53,6 +48,8 @@ JOY_STICK_UPDATA:
 _GICINI:
     DI
         CALL x1_psgReset
+        LD A,#0xB8
+        LD (PSG_REG7),A
     EI
     RET
 
@@ -161,7 +158,10 @@ RDPSG_JOYSTICK:
     RET
 
 RDPSG_REGISTER7:
-    LD A,(PSG_REG7)
+    ;LD A,(PSG_REG7)
+    .DB 0x3E
+PSG_REG7: ; PSGレジスタ7の値
+    .DB 0xB8
     RET
 
 ;;
@@ -280,8 +280,6 @@ IN_OUT_HOOK_OUT_0xA0_A:
     LD A,(SAVE_A)
     LD (PSG_REGISTER_NO),A
     RET
-PSG_REGISTER_NO:
-    .DB 0x00
 
 ;;
 ; OUT (0xA1),A
@@ -290,7 +288,10 @@ IN_OUT_HOOK_OUT_0xA1_A:
     LD A,(SAVE_A)
     PUSH DE
         LD E,A
-        LD A,(PSG_REGISTER_NO)
+        ;LD A,(PSG_REGISTER_NO)
+        .DB 0x3E
+PSG_REGISTER_NO:
+        .DB 0x00
         CALL _WRTPSG
     POP DE
     LD A,(SAVE_A)
@@ -310,15 +311,15 @@ IN_OUT_HOOK_OUT_0xAA_A:
     LD A,(SAVE_A)
     LD (PPI_REGISTER_NO),A
     RET
-PPI_REGISTER_NO:
-    .DB 0x00
 
 ;;
 ; PPI
 ;;
 IN_OUT_HOOK_IN_A_0xA9:
-    ;LD A,(SAVE_A)
-    LD A,(PPI_REGISTER_NO)
+    ;LD A,(PPI_REGISTER_NO)
+    .DB 0x3E
+PPI_REGISTER_NO:
+    .DB 0x00
     OR A
     RET NZ
     ; 0行
@@ -360,6 +361,7 @@ IN_OUT_HOOK_PSG_AND_PPI:
     JP Z,IN_OUT_HOOK_OUT_0xAA_A
     ;
 IN_OUT_HOOK_PSG_EXIT:
+    ; LD A,n
     .DB 0x3E
 SAVE_A:
     .DB 0x00

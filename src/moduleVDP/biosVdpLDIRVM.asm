@@ -38,35 +38,51 @@ _LDIRVM:
         JR NC,LDIRVM_NOT_OVERLAP
 ; 転送元がバンクメモリと重なっている
 LDIRVM_OVERLAP:
+        EXX
+            PUSH BC
+            PUSH HL
+            LD BC,#0x0B00 ; 10
+            LD L,#0x010
+        EXX
+        DEC BC
+        INC C
+        LD A,B
+        LD B,C
+        LD C,A
+        INC C
+        DI
 LDIRVM_OVERLAP_LOOP:
-        PUSH BC
             LD A,(HL)
             INC HL
 
-            LD BC,#0x0B00
-            DI
-            OUT (C),C
+            ; バンクメモリ0に切り替え
+            EXX
+                OUT (C),C
+            EXX
 
             LD (DE),A
             INC DE
 
-            LD A,#0x10
-            OUT (C),A
-            EI
-        POP BC
-        DEC BC
-        LD A,B
-        OR C
-        JR NZ,LDIRVM_OVERLAP_LOOP
+            ; メインメモリに切り替え
+            EXX
+                OUT (C),L
+            EXX
+        DJNZ LDIRVM_OVERLAP_LOOP
+        DEC C
+        JP NZ,LDIRVM_OVERLAP_LOOP
 
         ; VDPのポインタを更新しておく
-        DI
         LD (VRAM_ACCESS_POINTER),DE
         EI
+        EXX
+            POP HL
+            POP BC
+        EXX
         EX DE,HL
         JR LDIRVM_EXIT
 ; 転送元がバンクメモリと重なっていない
 LDIRVM_NOT_OVERLAP:
+        ; バンクメモリ0に切り替え
         PUSH BC
         LD BC,#0x0B00
         DI
@@ -75,7 +91,8 @@ LDIRVM_NOT_OVERLAP:
 
         LDIR
 
-        LD BC,#0x0B00
+        ; メインメモリに切り替え
+        LD B,#0x0B
         LD A,#0x10
         OUT (C),A
 
